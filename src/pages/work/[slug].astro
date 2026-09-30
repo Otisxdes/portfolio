@@ -1,0 +1,43 @@
+---
+/* Temporary case study page so links work. Replaced in the case-study
+   phase with a content-driven template. */
+import Base from '../../layouts/Base.astro';
+import { projects } from '../../data/site';
+
+export function getStaticPaths() {
+  return projects
+    .filter((p) => p.hasCaseStudy)
+    .map((project) => ({ params: { slug: project.slug }, props: { project } }));
+}
+
+const { project } = Astro.props;
+---
+
+<Base title={project.title} description={`${project.title}: ${project.outcome}.`}>
+  <header class="head" data-reveal-group>
+    <p class="label" data-reveal>{project.discipline} / {project.context} · {project.period}</p>
+    <h1 data-reveal>{project.title}</h1>
+    <p class="outcome" data-reveal>{project.outcome}</p>
+  </header>
+  <p class="muted" data-reveal>Case study coming in the next phase.</p>
+  <p data-reveal><a href="/">← Back to index</a></p>
+</Base>
+
+<style>
+  .head {
+    display: grid;
+    gap: var(--space-2);
+    margin-bottom: var(--space-6);
+  }
+  h1 {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-medium);
+    line-height: var(--leading-tight);
+  }
+  .outcome {
+    font-size: var(--text-lg);
+  }
+  p + p {
+    margin-top: var(--space-3);
+  }
+</style>

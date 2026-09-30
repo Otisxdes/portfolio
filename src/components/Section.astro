@@ -1,0 +1,24 @@
+---
+/* A labelled section on the index ("work", "experience", "contact"). */
+interface Props {
+  label: string;
+  id?: string;
+}
+const { label, id } = Astro.props;
+const headingId = `${id ?? label}-heading`;
+---
+
+<section class="section" aria-labelledby={headingId} id={id}>
+  <h2 class="label" id={headingId} data-reveal>{label}</h2>
+  <slot />
+</section>
+
+<style>
+  .section {
+    margin-top: var(--space-8);
+  }
+  h2 {
+    font-weight: var(--weight-regular);
+    margin-bottom: var(--space-3);
+  }
+</style>

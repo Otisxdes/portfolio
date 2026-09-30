@@ -1,0 +1,24 @@
+---
+import Base from '../../layouts/Base.astro';
+import ProjectRow from '../../components/ProjectRow.astro';
+import { projects } from '../../data/site';
+---
+
+<Base title="Work" description="Selected product design work by Otabek Mukhsinov.">
+  <h1 class="label" data-reveal>selected work</h1>
+  <!-- Rows for now; this becomes a video-thumbnail grid once each project has a loop. -->
+  <ul class="rows" data-reveal-group>
+    {projects.map((project) => <ProjectRow project={project} />)}
+  </ul>
+</Base>
+
+<style>
+  h1 {
+    font-weight: var(--weight-regular);
+    margin-bottom: var(--space-3);
+  }
+  .rows {
+    padding: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+</style>

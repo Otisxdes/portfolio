@@ -1,0 +1,110 @@
+---
+/* One row in a project list: status dot, title, outcome, metadata.
+   Links to the case study when one exists. */
+import type { Project } from '../data/site';
+
+interface Props {
+  project: Project;
+}
+
+const { project } = Astro.props;
+const live = project.status === 'in-progress';
+const Tag = project.hasCaseStudy ? 'a' : 'div';
+---
+
+<li data-reveal>
+  <Tag
+    class:list={['row', { linked: project.hasCaseStudy }]}
+    href={project.hasCaseStudy ? `/work/${project.slug}` : undefined}
+  >
+    <span class="title">
+      {project.title}
+      {
+        live && (
+          <span class="status">
+            <span class="pulse" aria-hidden="true" />
+            <span class="label">In progress</span>
+          </span>
+        )
+      }
+    </span>
+    <span class="outcome muted">{project.outcome}</span>
+    <span class="meta label">{project.discipline} / {project.context} · {project.period}</span>
+  </Tag>
+</li>
+
+<style>
+  li {
+    list-style: none;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .row {
+    display: grid;
+    gap: var(--space-1);
+    padding-block: var(--space-4);
+    text-decoration: none;
+  }
+
+  .title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-weight: var(--weight-medium);
+  }
+
+  /* Linked rows: arrow appears and nudges on hover. */
+  .linked .title::after {
+    content: '→';
+    margin-left: auto;
+    color: var(--color-text-faint);
+    transition: transform var(--duration-base) var(--ease-out),
+      color var(--duration-base) var(--ease-out);
+  }
+  .linked:hover .title::after {
+    transform: translateX(3px);
+    color: var(--color-text);
+  }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-weight: var(--weight-regular);
+  }
+
+  .pulse {
+    position: relative;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-live);
+  }
+  .pulse::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--color-live);
+    animation: pulse 2s var(--ease-out) infinite;
+  }
+  @keyframes pulse {
+    from {
+      transform: scale(1);
+      opacity: 0.6;
+    }
+    to {
+      transform: scale(2.6);
+      opacity: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pulse::after {
+      animation: none;
+    }
+  }
+
+  .meta {
+    color: var(--color-text-faint);
+  }
+</style>

@@ -1,0 +1,113 @@
+---
+import Base from '../layouts/Base.astro';
+import Section from '../components/Section.astro';
+import ProjectRow from '../components/ProjectRow.astro';
+import { projects, experience, socials, site } from '../data/site';
+---
+
+<Base>
+  <div class="intro" data-reveal-group>
+    <!-- TODO: your one-liner. Keep it concrete: what you design, where, and for what outcome. -->
+    <p class="lead placeholder" data-reveal>
+      I'm Otabek — [your one-liner goes here, 15 words or fewer].
+    </p>
+
+    <p data-reveal>
+      Currently at Landmark Group, designing across the{' '}
+      <a href="/work/shukran-credit-card">Shukran loyalty programme</a> and e-commerce for Homecentre,
+      Babyshop and Splash. Right now I'm redesigning the returns journey.
+    </p>
+
+    <p data-reveal>
+      I hand the routine to AI — research, iterations, first drafts of copy — so more of my time goes
+      where human judgment matters.
+    </p>
+
+    <p class="muted" data-reveal>Based in {site.location.city}.</p>
+  </div>
+
+  <Section label="work">
+    <ul class="rows" data-reveal-group>
+      {projects.map((project) => <ProjectRow project={project} />)}
+    </ul>
+  </Section>
+
+  <Section label="experience">
+    <ul class="rows" data-reveal-group>
+      {
+        experience.map((job) => (
+          <li class="job" data-reveal>
+            <span>{job.org}</span>
+            <span class="muted">{job.role}</span>
+            <span class="label period">{job.period}</span>
+          </li>
+        ))
+      }
+    </ul>
+  </Section>
+
+  <Section label="contact">
+    <div class="contact" data-reveal-group>
+      <p data-reveal>
+        Hiring for a product design role, or building something that needs a careful eye?{' '}
+        <a href={`mailto:${site.email}`}>Email me</a>.
+      </p>
+      <p class="muted" data-reveal>
+        Elsewhere:{' '}
+        {
+          socials.map((s, i) => (
+            <>
+              <a href={s.href} rel="me noopener" target="_blank">
+                {s.label}
+              </a>
+              {i < socials.length - 1 ? ', ' : '.'}
+            </>
+          ))
+        }
+      </p>
+    </div>
+  </Section>
+</Base>
+
+<style>
+  .intro {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .lead {
+    font-size: var(--text-lg);
+    line-height: var(--leading-tight);
+    font-weight: var(--weight-medium);
+  }
+
+  /* Visible marker for copy that still needs writing. Delete with the TODO. */
+  .placeholder {
+    color: var(--color-text-faint);
+  }
+
+  .rows {
+    padding: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .job {
+    list-style: none;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0 var(--space-4);
+    padding-block: var(--space-3);
+    border-top: 1px solid var(--color-border);
+  }
+  .job .period {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    color: var(--color-text-faint);
+  }
+
+  .contact {
+    display: grid;
+    gap: var(--space-3);
+  }
+</style>

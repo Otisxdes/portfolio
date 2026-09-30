@@ -1,0 +1,59 @@
+---
+/* Light/dark toggle. Default follows the system; a click saves an explicit
+   choice. The label names the theme you'll switch TO. */
+---
+
+<button class="toggle label" type="button" data-theme-toggle aria-label="Switch theme">
+  <span class="dot" aria-hidden="true"></span>
+</button>
+
+<script>
+  const isDark = () => {
+    const set = document.documentElement.dataset.theme;
+    if (set) return set === 'dark';
+    return matchMedia('(prefers-color-scheme: dark)').matches;
+  };
+
+  const update = (btn: HTMLButtonElement) => {
+    const next = isDark() ? 'light' : 'dark';
+    btn.setAttribute('aria-label', `Switch to ${next} theme`);
+    btn.title = `Switch to ${next} theme`;
+  };
+
+  const btn = document.querySelector<HTMLButtonElement>('[data-theme-toggle]');
+  if (btn) {
+    update(btn);
+    btn.addEventListener('click', () => {
+      const next = isDark() ? 'light' : 'dark';
+      document.documentElement.dataset.theme = next;
+      try {
+        localStorage.setItem('theme', next);
+      } catch (e) {
+        /* storage unavailable — theme still applies for this visit */
+      }
+      update(btn);
+    });
+  }
+</script>
+
+<style>
+  .toggle {
+    width: 1.75rem;
+    height: 1.75rem;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+  }
+  .dot {
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 50%;
+    border: 1.5px solid var(--color-text);
+    /* Half-filled circle: reads as "theme" without an icon library. */
+    background: linear-gradient(90deg, var(--color-text) 50%, transparent 50%);
+    transition: transform var(--duration-base) var(--ease-out);
+  }
+  .toggle:hover .dot {
+    transform: rotate(180deg);
+  }
+</style>

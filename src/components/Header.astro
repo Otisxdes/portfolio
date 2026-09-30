@@ -1,0 +1,136 @@
+---
+/* Header: clock + nav + theme toggle. `transition:persist` keeps it (and
+   the ticking clock) alive across page transitions instead of re-rendering. */
+import { nav, site } from '../data/site';
+import ThemeToggle from './ThemeToggle.astro';
+---
+
+<header class="header" transition:persist="site-header">
+  <div class="inner">
+    <a href="/" class="name" aria-label={`${site.name}, home`}>{site.shortName}</a>
+
+    <p class="clock label" aria-label={`Local time in ${site.location.city}`}>
+      <time data-clock data-tz={site.location.timeZone}>--:--:--</time>
+      <span class="zone">({site.location.zoneLabel})</span>
+    </p>
+
+    <nav aria-label="Primary">
+      <ul>
+        {
+          nav.map((item) => (
+            <li>
+              <a href={item.href} data-nav-link>
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
+    <ThemeToggle />
+  </div>
+</header>
+
+<script>
+  /* Live clock in the site owner's timezone. */
+  const el = document.querySelector<HTMLTimeElement>('[data-clock]');
+  if (el) {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: el.dataset.tz,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    });
+    const tick = () => {
+      const now = new Date();
+      el.textContent = fmt.format(now);
+      el.dateTime = now.toISOString();
+    };
+    tick();
+    setInterval(tick, 1000);
+  }
+
+  /* The header persists across pages, so the "current page" marker has to
+     be updated by script after each navigation. */
+  const markCurrent = () => {
+    const path = location.pathname.replace(/\/$/, '') || '/';
+    document.querySelectorAll<HTMLAnchorElement>('[data-nav-link]').forEach((a) => {
+      const href = a.getAttribute('href') ?? '';
+      const isCurrent = href === '/' ? path === '/' : path.startsWith(href);
+      if (isCurrent) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
+    });
+  };
+  document.addEventListener('astro:page-load', markCurrent);
+</script>
+
+<style>
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: color-mix(in srgb, var(--color-bg) 85%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .inner {
+    max-width: calc(var(--measure) + var(--gutter) * 2);
+    margin-inline: auto;
+    padding: var(--space-4) var(--gutter);
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .name {
+    font-weight: var(--weight-medium);
+    text-decoration: none;
+  }
+
+  .clock {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .zone {
+    color: var(--color-text-faint);
+    margin-left: 0.4em;
+  }
+
+  nav {
+    margin-left: auto;
+  }
+  ul {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    gap: var(--space-4);
+  }
+  nav a {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    text-decoration: none;
+  }
+  nav a:hover,
+  nav a[aria-current='page'] {
+    color: var(--color-text);
+  }
+
+  /* Mobile: the clock drops to its own line under the name. */
+  @media (max-width: 34rem) {
+    .inner {
+      flex-wrap: wrap;
+      row-gap: var(--space-1);
+    }
+    .clock {
+      order: 3;
+      width: 100%;
+    }
+    ul {
+      gap: var(--space-3);
+    }
+  }
+</style>
