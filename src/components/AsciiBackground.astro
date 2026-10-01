@@ -32,7 +32,7 @@
     const artCtx = art.getContext('2d')!;
     const glowCtx = glow.getContext('2d')!;
 
-    let tokens = { color: '#888', base: 0.06, peak: 0.12, period: 24000 };
+    let tokens = { color: '#888', base: 0.04, peak: 0.08, period: 24000 };
     let box = { x: 0, y: 0, w: 0, h: 0 }; // where the art sits on the canvas
     let raf = 0;
     let last = 0;
@@ -42,8 +42,8 @@
       const css = getComputedStyle(document.documentElement);
       tokens = {
         color: css.getPropertyValue('--ascii-color').trim() || '#888',
-        base: parseFloat(css.getPropertyValue('--ascii-opacity')) || 0.06,
-        peak: parseFloat(css.getPropertyValue('--ascii-opacity-peak')) || 0.12,
+        base: parseFloat(css.getPropertyValue('--ascii-opacity')) || 0.04,
+        peak: parseFloat(css.getPropertyValue('--ascii-opacity-peak')) || 0.08,
         period: (parseFloat(css.getPropertyValue('--ascii-pass-duration')) || 24) * 1000,
       };
     };
