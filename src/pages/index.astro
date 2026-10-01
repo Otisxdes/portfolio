@@ -2,10 +2,13 @@
 import Base from '../layouts/Base.astro';
 import Section from '../components/Section.astro';
 import ProjectRow from '../components/ProjectRow.astro';
+import AsciiBackground from '../components/AsciiBackground.astro';
 import { projects, experience, socials, site } from '../data/site';
 ---
 
 <Base>
+  <AsciiBackground />
+
   <div class="intro" data-reveal-group>
     <!-- TODO: your one-liner. Keep it concrete: what you design, where, and for what outcome. -->
     <p class="lead placeholder" data-reveal>

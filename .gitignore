@@ -17,3 +17,6 @@ npm-debug.log*
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# source photos for generated art (not ours to redistribute)
+scripts/source/

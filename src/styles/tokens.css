@@ -61,6 +61,14 @@
   --color-accent: var(--color-text);
   --ornament: none;
 
+  /* Homepage ASCII background (Mir-i-Arab). Uses the text colour, so it's
+     soft off-white in dark mode and near-black in light — never pure white.
+     Resting strength, and the peak as the light pass sweeps over it. */
+  --ascii-color: var(--color-text);
+  --ascii-opacity: 0.06;
+  --ascii-opacity-peak: 0.12;
+  --ascii-pass-duration: 24s; /* one full sweep + rest */
+
   color-scheme: light;
 }
 
