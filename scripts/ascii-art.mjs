@@ -1,17 +1,20 @@
-/* Turns a photo into the ASCII art used as the homepage background.
+/* Turns a photo into the dot-matrix art used as the homepage background.
 
    Run:  npm run ascii
    In:   scripts/source/mir-i-arab.webp
    Out:  src/data/ascii-art.ts  (generated — don't edit by hand, re-run instead)
 
+   The art is ONE symbol repeated on a grid; only its strength varies, like
+   a halftone print. Each cell gets a level 0–LEVELS (0 = empty).
+
    How it works:
-   1. Crop to the building and shrink to a grid (one pixel = one character).
-   2. Remove the sky by colour: pale, unsaturated cells connected to the
-      top edge are sky → blank. (Brightness alone fails: the turquoise
-      domes are as bright as the sky.)
-   3. "Ink" per cell = darkness + edge strength, so tilework, arches and
-      outlines read clearly while flat brick stays airy.
-   4. Map ink to a character ramp, light → dense. */
+   1. Crop to the building, blur away tile detail, shrink to the grid.
+   2. Remove the sky by colour: clearly blue cells (blue well above red
+      and green) connected to the top edge → empty. The turquoise domes
+      have as much green as blue, so they stay.
+   3. Inside the building, brightness → level. Lit brick and domes are
+      strong; arches, niches and shadow fall away to faint or empty, so
+      the openings read as carved-out shapes. */
 import sharp from 'sharp';
 import { writeFileSync } from 'node:fs';
 
@@ -19,58 +22,46 @@ const SOURCE = 'scripts/source/mir-i-arab.webp';
 const OUT = 'src/data/ascii-art.ts';
 
 // ---- Tuning ---------------------------------------------------------------
-const COLS = 180;
-// Monospace cells are taller than wide. Matches the canvas cell
-// (0.6em wide × 1em tall) so the building isn't stretched.
-const CELL_ASPECT = 0.6;
+const COLS = 200;
 // Crop box in source pixels: the building, a little sky, no square.
-const CROP = { left: 0, top: 270, width: 1080, height: 545 };
-const RAMP = ' .,:;-=+*#%@';
-const EDGE_WEIGHT = 0.7; // how much outlines count vs. darkness
-const SKY_SATURATION = 0.2; // below this (and connected to the top) = sky
-const DARK_WEIGHT = 1.1;     // how much shadow/tilework counts
-const GAMMA = 1.8;
+const CROP = { left: 0, top: 0, width: 1314, height: 680 };
+const BLUR = 2.2;           // source-pixel blur: hides tiles, keeps arches
+const LEVELS = 4;           // strength steps for the symbol
+const SKY_BLUENESS = 0.12;  // blue minus max(red, green) above this = sky
+const CONTRAST = 1.2;       // >1 pushes mid-tones apart so shapes separate
+const LOCAL_CONTRAST = { width: 60, height: 60, maxSlope: 4 }; // CLAHE
+// The main pointed arch (iwan), in source pixels. Sunlight hits only half
+// of it, so it's traced by hand and recessed to read as one deep opening.
+const IWAN = { left: 515, right: 800, spring: 330, apex: 150, bottom: 680, level: 1 };
 // ---------------------------------------------------------------------------
 
-const ROWS = Math.round((COLS * CROP.height) / CROP.width * CELL_ASPECT);
+// Square cells: the symbol sits on an even grid.
+const ROWS = Math.round((COLS * CROP.height) / CROP.width);
 
-const { data } = await sharp(SOURCE)
+// Colour grid for the sky mask (crisp silhouette).
+const colourData = await sharp(SOURCE)
   .extract(CROP)
+  .removeAlpha()
   .resize(COLS, ROWS, { fit: 'fill', kernel: 'lanczos3' })
   .raw()
-  .toBuffer({ resolveWithObject: true });
+  .toBuffer();
+// Tone grid: local contrast (CLAHE) lifts arch rims and tile frames out of
+// the hard sidelight, then blur hides individual tiles.
+const toneData = await sharp(
+  await sharp(SOURCE).extract(CROP).greyscale().clahe(LOCAL_CONTRAST).blur(BLUR).toBuffer()
+)
+  .resize(COLS, ROWS, { fit: 'fill', kernel: 'lanczos3' })
+  .extractChannel(0) // one byte per cell
+  .raw()
+  .toBuffer();
 
-const clampX = (x) => Math.min(COLS - 1, Math.max(0, x));
-const clampY = (y) => Math.min(ROWS - 1, Math.max(0, y));
-const rgb = (x, y) => {
-  const i = (clampY(y) * COLS + clampX(x)) * 3;
-  return [data[i] / 255, data[i + 1] / 255, data[i + 2] / 255];
-};
-// Perceived brightness, 0–1.
-const lum = (x, y) => {
-  const [r, g, b] = rgb(x, y);
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-};
-const saturation = (x, y) => {
-  const c = rgb(x, y);
-  const max = Math.max(...c);
-  return max ? (max - Math.min(...c)) / max : 0;
+const lum = (x, y) => toneData[y * COLS + x] / 255;
+const blueness = (x, y) => {
+  const i = (y * COLS + x) * 3;
+  return (colourData[i + 2] - Math.max(colourData[i], colourData[i + 1])) / 255;
 };
 
-// Sobel edge magnitude, 0–1.
-const edge = (x, y) => {
-  const gx =
-    -lum(x - 1, y - 1) - 2 * lum(x - 1, y) - lum(x - 1, y + 1) +
-    lum(x + 1, y - 1) + 2 * lum(x + 1, y) + lum(x + 1, y + 1);
-  const gy =
-    -lum(x - 1, y - 1) - 2 * lum(x, y - 1) - lum(x + 1, y - 1) +
-    lum(x - 1, y + 1) + 2 * lum(x, y + 1) + lum(x + 1, y + 1);
-  return Math.min(1, Math.hypot(gx, gy) / 4);
-};
-
-// Sky mask: the sky is pale and grey-blue (low saturation); brick, tiles
-// and the turquoise domes are all saturated. Flood-fill from the top edge
-// through low-saturation cells so nothing inside the building is removed.
+// Sky: flood-fill from the top edge through blue cells.
 const sky = new Uint8Array(COLS * ROWS);
 const queue = [];
 for (let x = 0; x < COLS; x++) queue.push([x, 0]);
@@ -78,42 +69,57 @@ while (queue.length) {
   const [x, y] = queue.pop();
   if (x < 0 || y < 0 || x >= COLS || y >= ROWS) continue;
   const i = y * COLS + x;
-  if (sky[i] || saturation(x, y) > SKY_SATURATION) continue;
+  if (sky[i] || blueness(x, y) < SKY_BLUENESS) continue;
   sky[i] = 1;
   queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
 }
 
-// Normalise darkness across the building only (the sky would skew it).
+// Normalise brightness across the building only.
 let lo = 1, hi = 0;
 for (let y = 0; y < ROWS; y++)
   for (let x = 0; x < COLS; x++)
     if (!sky[y * COLS + x]) { const l = lum(x, y); lo = Math.min(lo, l); hi = Math.max(hi, l); }
-const darkness = (x, y) => 1 - (lum(x, y) - lo) / (hi - lo || 1);
+
+// Is a cell inside the iwan? Below the springing line it's a rectangle;
+// above it the sides curve in to meet at the apex (pointed arch).
+const inIwan = (x, y) => {
+  const sx = CROP.left + ((x + 0.5) / COLS) * CROP.width;
+  const sy = CROP.top + ((y + 0.5) / ROWS) * CROP.height;
+  const mid = (IWAN.left + IWAN.right) / 2;
+  const half = (IWAN.right - IWAN.left) / 2;
+  if (sy > IWAN.bottom || sy < IWAN.apex) return false;
+  if (sy >= IWAN.spring) return Math.abs(sx - mid) <= half;
+  const rise = (IWAN.spring - sy) / (IWAN.spring - IWAN.apex); // 0 at spring → 1 at apex
+  return Math.abs(sx - mid) <= half * Math.sqrt(1 - rise ** 1.6);
+};
 
 const lines = [];
 for (let y = 0; y < ROWS; y++) {
   let line = '';
   for (let x = 0; x < COLS; x++) {
-    if (sky[y * COLS + x]) {
-      line += ' ';
-      continue;
-    }
-    // Gamma > 1 keeps most of the facade sparse so only detail stands out.
-    const ink = Math.min(1, (darkness(x, y) * DARK_WEIGHT + edge(x, y) * EDGE_WEIGHT) ** GAMMA);
-    line += RAMP[Math.round(ink * (RAMP.length - 1))];
+    if (sky[y * COLS + x]) { line += '0'; continue; }
+    const t = (lum(x, y) - lo) / (hi - lo || 1);
+    // Stretch around the middle for contrast.
+    const c = Math.min(1, Math.max(0, (t - 0.5) * CONTRAST + 0.5));
+    let level = Math.round(c * LEVELS);
+    if (inIwan(x, y)) level = Math.min(level, IWAN.level);
+    // A full-strength rim just outside the arch draws its pointed outline.
+    else if (inIwan(x - 1, y) || inIwan(x + 1, y) || inIwan(x, y + 1)) level = LEVELS;
+    line += String(level);
   }
-  lines.push(line.replace(/\s+$/, ''));
+  lines.push(line);
 }
 
 const file = `/* GENERATED by scripts/ascii-art.mjs — edit the script, not this file.
-   Source: ${SOURCE} · ${COLS}×${ROWS} characters. */
+   Source: ${SOURCE} · ${COLS}×${ROWS} cells.
+   Each character is a strength level 0–${LEVELS} for one cell (0 = empty). */
 export const asciiArt = {
   cols: ${COLS},
   rows: ${ROWS},
+  levels: ${LEVELS},
   lines: ${JSON.stringify(lines, null, 2)},
 };
 `;
 
 writeFileSync(OUT, file);
-console.log(lines.join('\n'));
-console.log(`\n→ ${OUT} (${COLS}×${ROWS})`);
+console.log(`→ ${OUT} (${COLS}×${ROWS})`);
