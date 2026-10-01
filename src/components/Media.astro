@@ -1,0 +1,64 @@
+---
+/* Optimised image. Put the source file in src/assets/… and import it —
+   Astro resizes it and serves AVIF/WebP with the right srcset at build time.
+
+   Usage:
+     import hero from '../assets/projects/shukran-credit-card/hero.png';
+     <Media src={hero} alt="Landing page hero on desktop" />
+*/
+import { Picture } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+
+interface Props {
+  src: ImageMetadata;
+  /** Describe what the image shows. Use "" only for purely decorative images. */
+  alt: string;
+  caption?: string;
+  /** Load immediately (use for the first image on a page). */
+  priority?: boolean;
+  /** How wide the image renders, so the browser picks the right file. */
+  sizes?: string;
+  class?: string;
+}
+
+const {
+  src,
+  alt,
+  caption,
+  priority = false,
+  sizes = '(min-width: 64rem) 64rem, 100vw',
+  class: className,
+} = Astro.props;
+
+const widths = [480, 800, 1200, 1600, 2400].filter((w) => w <= src.width);
+---
+
+<figure class:list={['media', className]}>
+  <Picture
+    src={src}
+    alt={alt}
+    formats={['avif', 'webp']}
+    widths={widths.length ? widths : [src.width]}
+    sizes={sizes}
+    loading={priority ? 'eager' : 'lazy'}
+    fetchpriority={priority ? 'high' : 'auto'}
+    decoding="async"
+  />
+  {caption && <figcaption class="label">{caption}</figcaption>}
+</figure>
+
+<style>
+  .media {
+    display: grid;
+    gap: var(--space-2);
+  }
+  .media :global(img) {
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+  figcaption {
+    color: var(--color-text-faint);
+  }
+</style>

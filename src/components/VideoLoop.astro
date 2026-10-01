@@ -1,0 +1,84 @@
+---
+/* Silent looping video — for project thumbnails and product walkthroughs.
+   Put files in public/media/… (videos aren't processed at build time, so
+   export them small: H.264 MP4, ≤ 1600px wide, ideally under 3 MB).
+
+   Usage:
+     <VideoLoop src="/media/projects/shukran-credit-card/loop.mp4"
+                poster="/media/projects/shukran-credit-card/loop-poster.jpg"
+                label="Scrolling through the credit card landing page" />
+
+   Behaviour:
+   - Plays only while on screen (saves battery and CPU).
+   - Reduced-motion users see the poster frame; no autoplay.
+*/
+interface Props {
+  src: string;
+  /** First-frame image shown before load and for reduced-motion users. */
+  poster: string;
+  /** What the video shows — read by screen readers. */
+  label: string;
+  /** e.g. "16 / 10". Reserves space so the layout doesn't jump. */
+  aspect?: string;
+  class?: string;
+}
+
+const { src, poster, label, aspect = '16 / 10', class: className } = Astro.props;
+---
+
+<div class:list={['loop', className]} style={`aspect-ratio: ${aspect}`}>
+  <video
+    data-video-loop
+    muted
+    loop
+    playsinline
+    preload="none"
+    poster={poster}
+    aria-label={label}
+  >
+    <source src={src} type="video/mp4" />
+  </video>
+</div>
+
+<script>
+  const setup = () => {
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return; // poster only
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const video = entry.target as HTMLVideoElement;
+          if (entry.isIntersecting) {
+            if (video.preload === 'none') video.preload = 'auto';
+            video.play().catch(() => {
+              /* autoplay blocked — poster stays visible */
+            });
+          } else {
+            video.pause();
+          }
+        }
+      },
+      { threshold: 0.25 }
+    );
+
+    document
+      .querySelectorAll<HTMLVideoElement>('[data-video-loop]')
+      .forEach((v) => observer.observe(v));
+  };
+
+  document.addEventListener('astro:page-load', setup);
+</script>
+
+<style>
+  .loop {
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+</style>

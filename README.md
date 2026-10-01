@@ -24,6 +24,8 @@ npm run check    # type-check
 | Smooth scroll feel (Lenis) | `src/scripts/smooth-scroll.ts` → `lerp` |
 | Reveal-on-scroll motion | `src/scripts/reveal.ts` |
 | Pages | `src/pages/` — each file is a URL |
+| Images and videos | see `src/assets/README.md` |
+| Optimised image / video loop | `src/components/Media.astro`, `VideoLoop.astro` |
 
 ## Principles
 
