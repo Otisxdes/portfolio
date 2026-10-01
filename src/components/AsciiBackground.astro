@@ -18,8 +18,7 @@
   const FPS = 30; // plenty for a slow sweep, half the work of 60
   const BAND = 0.28; // width of the light band, as a share of the art width
   const SYMBOL = '+'; // the one character the whole building is drawn with
-  const MAX_CELL = 5; // px per symbol on large screens
-  const MAX_HEIGHT = 0.6; // never taller than this share of the window
+  const MAX_HEIGHT = 0.85; // never taller than this share of the window
 
   const setup = () => {
     const canvas = document.querySelector<HTMLCanvasElement>('[data-ascii-bg]');
@@ -57,13 +56,10 @@
       canvas.width = glow.width = Math.round(vw * dpr);
       canvas.height = glow.height = Math.round(vh * dpr);
 
-      // Cell size in CSS px: MAX_CELL on large screens, shrinking so the
-      // building fits narrow or short windows. Anchored bottom, centred.
-      const cell = Math.min(
-        MAX_CELL,
-        (vw * 0.94) / asciiArt.cols,
-        (vh * MAX_HEIGHT) / asciiArt.rows
-      );
+      // Full width of the window, unless that would make it taller than
+      // MAX_HEIGHT (very wide, short windows). Anchored bottom, centred.
+      // Symbol size comes from the grid: more columns = smaller symbols.
+      const cell = Math.min(vw / asciiArt.cols, (vh * MAX_HEIGHT) / asciiArt.rows);
       box = {
         w: asciiArt.cols * cell * dpr,
         h: asciiArt.rows * cell * dpr,

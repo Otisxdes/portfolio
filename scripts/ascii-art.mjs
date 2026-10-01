@@ -22,7 +22,7 @@ const SOURCE = 'scripts/source/mir-i-arab.webp';
 const OUT = 'src/data/ascii-art.ts';
 
 // ---- Tuning ---------------------------------------------------------------
-const COLS = 200;
+const COLS = 280;
 // Crop box in source pixels: the building, a little sky, no square.
 const CROP = { left: 0, top: 0, width: 1314, height: 680 };
 const BLUR = 2.2;           // source-pixel blur: hides tiles, keeps arches
