@@ -48,8 +48,8 @@
     let marks: Array<[number, number]> = [];
     let mark = { arm: 1, stroke: 1, inset: 0, mid: 0 };
     let color = '#888';
-    let peak = 0.16; // extra opacity at a twinkle's brightest
-    let density = 0.004; // share of marks lit at any moment
+    let peak = 0.4; // extra opacity at a twinkle's brightest
+    let density = 0.005; // share of marks lit at any moment
 
     let twinkles: Twinkle[] = [];
     let raf = 0;
@@ -64,8 +64,8 @@
     const render = () => {
       const css = getComputedStyle(document.documentElement);
       color = css.getPropertyValue('--ascii-color').trim();
-      peak = parseFloat(css.getPropertyValue('--ascii-twinkle-peak')) || 0.16;
-      density = parseFloat(css.getPropertyValue('--ascii-twinkle-density')) || 0.004;
+      peak = parseFloat(css.getPropertyValue('--ascii-twinkle-peak')) || 0.4;
+      density = parseFloat(css.getPropertyValue('--ascii-twinkle-density')) || 0.005;
 
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const vw = window.innerWidth;

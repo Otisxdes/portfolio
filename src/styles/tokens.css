@@ -70,8 +70,8 @@
   --ascii-opacity: 0.12;
   /* Twinkle: a few marks at a time brighten by up to this much extra
      opacity, then fade back. Density = share of marks lit at once. */
-  --ascii-twinkle-peak: 0.16;
-  --ascii-twinkle-density: 0.004;
+  --ascii-twinkle-peak: 0.4;
+  --ascii-twinkle-density: 0.005;
 
   color-scheme: light;
 }
@@ -90,7 +90,7 @@
   --color-live: #3ecf7a;
   --color-focus: #7aa5ff;
   --ascii-opacity: 0.08;
-  --ascii-twinkle-peak: 0.14;
+  --ascii-twinkle-peak: 0.36;
   color-scheme: dark;
 }
 
@@ -106,7 +106,7 @@
     --color-live: #3ecf7a;
     --color-focus: #7aa5ff;
     --ascii-opacity: 0.08;
-    --ascii-twinkle-peak: 0.14;
+    --ascii-twinkle-peak: 0.36;
     color-scheme: dark;
   }
 }
