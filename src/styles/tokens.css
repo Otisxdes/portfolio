@@ -65,8 +65,10 @@
      soft off-white in dark mode and near-black in light — never pure white.
      Resting strength, then the moving light that passes over it. */
   --ascii-color: var(--color-text);
-  --ascii-opacity: 0.08;
-  --ascii-opacity-peak: 0.22; /* at the brightest point of the moving light */
+  /* Light mode needs more: dark marks on a light page read weaker than
+     light marks on a dark one. Dark-mode values are set below. */
+  --ascii-opacity: 0.12;
+  --ascii-opacity-peak: 0.26; /* at the brightest point of the moving light */
   --ascii-pass-duration: 13s; /* one pass, left edge → right edge, linear */
   --ascii-light-width: 45vw; /* width of the soft light band */
 
@@ -86,6 +88,8 @@
   --color-link-underline: #45453f;
   --color-live: #3ecf7a;
   --color-focus: #7aa5ff;
+  --ascii-opacity: 0.08;
+  --ascii-opacity-peak: 0.22;
   color-scheme: dark;
 }
 
@@ -100,6 +104,8 @@
     --color-link-underline: #45453f;
     --color-live: #3ecf7a;
     --color-focus: #7aa5ff;
+    --ascii-opacity: 0.08;
+    --ascii-opacity-peak: 0.22;
     color-scheme: dark;
   }
 }
