@@ -157,33 +157,64 @@ paint((x, y) => {
   return null;
 });
 
-// 4. Kalyan minaret — tall, tapered, banded brick, lantern near the top.
+// 4. Kalyan minaret (Minorai Kalon) — the tower that defines Bukhara's
+//    skyline. Top to bottom: small cone, flared stalactite cornice, lantern
+//    with a ring of arched windows, a band of fine brickwork, a thin tile
+//    band, then a strongly tapered shaft wrapped in bands of brick pattern.
 paint((x, y) => {
   const cx = W * 0.27;
-  const top = GROUND - 46;
-  if (y < top - 6 || y > GROUND) return null;
+  const crown = GROUND - 50; // top of the cornice
   const dx = x - cx;
-  // Cap and finial above the lantern
-  if (y < top) {
-    const d = inDome(x, y, cx, top, 2.6, 3);
-    if (d !== null) return 0.4 + shade(d, 0.25);
-    if (inRect(x, y, cx - 0.2, top - 6, cx + 0.2, top - 3)) return 0.45;
-    return null;
+  const lit = (half) => shade(dx / half, 0.3); // darker toward the right
+
+  // Cone cap
+  if (y < crown) {
+    const t = (crown - y) / 6; // 0 at the cornice → 1 at the tip
+    if (t > 1) return null;
+    const half = 2 * (1 - t) ** 0.8;
+    return Math.abs(dx) <= half ? 0.36 + lit(half || 1) : null;
   }
-  // Lantern (rotunda) with arched openings, slightly wider
-  if (y <= top + 5) {
-    const lh = 3.2;
-    if (Math.abs(dx) > lh) return null;
-    const opening = Math.abs(Math.sin((dx / lh) * Math.PI * 2)) > 0.6 && y > top + 1.5;
-    return opening ? 0.88 : 0.45 + shade(dx / lh, 0.25);
+  // Stalactite cornice: widest at the top, stepping in toward the lantern,
+  // with rows of little vertical cells.
+  if (y < crown + 4) {
+    const t = (y - crown) / 4;
+    const half = 5.3 - t * 1.6;
+    if (Math.abs(dx) > half) return null;
+    const cell = Math.sin(dx * 2.4 + Math.floor(t * 3) * 1.3) > 0.3;
+    return 0.34 + lit(half) + (cell ? 0.16 : 0);
   }
-  // Shaft: 3.6 half-width at the base → 2.4 under the lantern
-  const t = (GROUND - y) / (GROUND - top);
-  const half = 3.6 - 1.2 * t;
+  // Lantern: a ring of tall arched windows between slim piers.
+  if (y < crown + 9.5) {
+    const half = 3.7;
+    if (Math.abs(dx) > half) return null;
+    const winTop = crown + 5;
+    const winBase = crown + 8.6;
+    const span = 1.45;
+    const local = ((dx % span) + span * 1.5) % span - span / 2;
+    if (inArch(local, y, 0, winBase, 0.75, winBase - winTop)) return 0.9;
+    return 0.34 + lit(half);
+  }
+  // Shaft: tapers strongly, from 3.6 under the lantern to 6.4 at the ground.
+  const t = (y - (crown + 9.5)) / (GROUND - (crown + 9.5)); // 0 top → 1 base
+  const half = 3.6 + t * 2.8;
   if (Math.abs(dx) > half) return null;
-  // Ornamental brick bands, busier toward the top
-  const band = Math.sin(y * 1.6) > 0.82 || (t > 0.7 && Math.sin(y * 3.1) > 0.7);
-  return 0.32 + shade(dx / half, 0.3) + (band ? 0.12 : 0);
+  const depth = crown + 9.5;
+  // Fine brick band just under the lantern, then the turquoise tile band.
+  if (y < depth + 2.5) return 0.44 + lit(half) + (Math.sin(dx * 3) > 0.4 ? 0.1 : 0);
+  if (y < depth + 3.5) return 0.8 + lit(half) * 0.4;
+  // Bands of different brick patterns, separated by plain rings.
+  const band = Math.floor((y - depth - 3.5) / 6.5);
+  const inBand = (y - depth - 3.5) % 6.5;
+  if (inBand < 0.9) return 0.56 + lit(half); // plain dividing ring
+  const u = dx * 1.6;
+  const v = y * 1.6;
+  const pattern = [
+    Math.abs(((u + v) % 2 + 2) % 2 - 1) < 0.35, // diagonal lattice
+    Math.abs(((u - v) % 2 + 2) % 2 - 1) < 0.35 || Math.abs(((u + v) % 2 + 2) % 2 - 1) < 0.35, // diamonds
+    Math.sin(v * 2.2) > 0.5, // horizontal courses
+    (Math.floor(u) + Math.floor(v)) % 2 === 0, // chequer
+  ][band % 4];
+  return 0.18 + lit(half) + (pattern ? 0.22 : 0);
 });
 
 // 5. Mir-i-Arab — twin domes, the portal (pishtaq) and arcaded wings.
