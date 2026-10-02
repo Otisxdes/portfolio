@@ -67,10 +67,10 @@
   --ascii-color: var(--color-text);
   /* Light mode needs more: dark marks on a light page read weaker than
      light marks on a dark one. Dark-mode values are set below. */
-  --ascii-opacity: 0.17;
+  --ascii-opacity: 0.22;
   /* Twinkle: a few marks at a time brighten by up to this much extra
      opacity, then fade back. Density = share of marks lit at once. */
-  --ascii-twinkle-peak: 0.6;
+  --ascii-twinkle-peak: 0.4;
   --ascii-twinkle-density: 0.005;
 
   color-scheme: light;
@@ -89,8 +89,8 @@
   --color-link-underline: #45453f;
   --color-live: #3ecf7a;
   --color-focus: #7aa5ff;
-  --ascii-opacity: 0.13;
-  --ascii-twinkle-peak: 0.55;
+  --ascii-opacity: 0.18;
+  --ascii-twinkle-peak: 0.36;
   color-scheme: dark;
 }
 
@@ -105,8 +105,8 @@
     --color-link-underline: #45453f;
     --color-live: #3ecf7a;
     --color-focus: #7aa5ff;
-    --ascii-opacity: 0.13;
-    --ascii-twinkle-peak: 0.55;
+    --ascii-opacity: 0.18;
+    --ascii-twinkle-peak: 0.36;
     color-scheme: dark;
   }
 }
