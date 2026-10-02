@@ -85,6 +85,16 @@ const inDome = (x, y, cx, base, r, h) => {
 const step = (rel) => (rel < -0.35 ? 0 : rel < 0.35 ? 0.5 : 1);
 const shade = (rel, amount) => step(rel) * amount;
 
+// ---- Axes ----------------------------------------------------------------------
+// Each monument is symmetric around its own centre line. The dither is
+// mirrored there too, so left and right halves get identical marks.
+const AXES = [
+  { x: snap(16), half: 17 }, // large mosque
+  { x: snap(W * 0.3), half: 7 }, // Kalyan minaret
+  { x: snap(W * 0.77), half: 34 }, // Mir-i-Arab
+];
+const [MOSQUE, MINARET, MIR] = AXES.map((a) => a.x);
+
 // ---- The scene -------------------------------------------------------------
 // Tone field, painted back-to-front. Later layers cover earlier ones.
 const field = new Float32Array(COLS * ROWS);
@@ -116,10 +126,14 @@ const domeOnDrum = (x, y, { cx, drumTop, r, h, drumHalf, drumH, base }) => {
   return null;
 };
 
-// One bay of a two-storey arcade: a tile frame around a pointed niche.
+// One bay of a two-storey arcade: a tile frame (6 cells either side of the
+// centre) around a pointed niche (4 cells either side). Bays sit every
+// BAY_PITCH — a multiple of the 8-cell dither tile — so every bay is drawn
+// with exactly the same marks.
+const BAY_PITCH = 16 * CELL;
 const bay = (x, y, cx, base, h) => {
-  if (inArch(x, y, cx, base, 3.4, h)) return T.niche;
-  if (inRect(x, y, cx - 2.5, base - h - 1, cx + 2.5, base)) return T.frame;
+  if (inArch(x, y, cx, base, 8 * CELL, h)) return T.niche;
+  if (inRect(x, y, cx - 6 * CELL, base - h - 1, cx + 6 * CELL, base)) return T.frame;
   return null;
 };
 
@@ -135,7 +149,7 @@ paint((x, y) => {
 
 // 2. Large mosque dome over a symmetric arcade, left edge.
 paint((x, y) => {
-  const cx = snap(16);
+  const cx = MOSQUE;
   const wallTop = GROUND - 15.5;
   const drumTop = wallTop - 3.5;
   const dome = domeOnDrum(x, y, {
@@ -144,12 +158,12 @@ paint((x, y) => {
   if (dome !== null) return dome;
   if (!inRect(x, y, cx - 16, wallTop, cx + 16, GROUND)) return null;
   if (y < wallTop + 1) return T.frame; // parapet
-  for (const k of [0, 1, 2])
-    for (const side of [-1, 1]) {
-      const bx = cx + side * (2.67 + k * 5.33);
-      const v = bay(x, y, bx, GROUND, 6.2) ?? bay(x, y, bx, GROUND - 8, 5.4);
-      if (v !== null) return v;
-    }
+  // Five bays, the middle one on the dome's axis.
+  for (const k of [-2, -1, 0, 1, 2]) {
+    const bx = cx + k * BAY_PITCH;
+    const v = bay(x, y, bx, GROUND, 6.2) ?? bay(x, y, bx, GROUND - 8, 5.4);
+    if (v !== null) return v;
+  }
   return T.wall;
 });
 
@@ -158,7 +172,7 @@ paint((x, y) => {
 //    with a ring of arched windows, a band of fine brickwork, a thin tile
 //    band, then a strongly tapered shaft wrapped in bands of brick pattern.
 paint((x, y) => {
-  const cx = snap(W * 0.3);
+  const cx = MINARET;
   const crown = GROUND - 50; // top of the cornice
   const dx = x - cx;
   const lit = (half) => shade(dx / half, 0.3); // darker toward the right
@@ -185,8 +199,9 @@ paint((x, y) => {
     if (Math.abs(dx) > half) return null;
     const winTop = crown + 5;
     const winBase = crown + 8.6;
-    const span = 1.45;
-    const local = ((dx % span) + span * 1.5) % span - span / 2;
+    // Windows every 4 cells, one centred on the axis.
+    const span = 4 * CELL;
+    const local = ((Math.abs(dx) + span / 2) % span) - span / 2;
     if (inArch(local, y, 0, winBase, 0.75, winBase - winTop)) return 0.9;
     return 0.34 + lit(half);
   }
@@ -202,7 +217,7 @@ paint((x, y) => {
   const band = Math.floor((y - depth - 3.5) / 6.5);
   const inBand = (y - depth - 3.5) % 6.5;
   if (inBand < 0.9) return 0.56 + lit(half); // plain dividing ring
-  const u = dx * 1.6;
+  const u = Math.abs(dx) * 1.6; // mirrored, so diagonals read as chevrons
   const v = y * 1.6;
   const pattern = [
     Math.abs(((u + v) % 2 + 2) % 2 - 1) < 0.35, // diagonal lattice
@@ -216,11 +231,12 @@ paint((x, y) => {
 // 4. Mir-i-Arab — the portal (pishtaq) between twin domes, with two-storey
 //    arcaded wings and corner towers. Everything mirrors around `cx`.
 paint((x, y) => {
-  const cx = snap(W * 0.775);
+  const cx = MIR;
   const dx = Math.abs(x - cx); // distance from the centre line
   const wallTop = GROUND - 16;
-  const portal = { half: 10.5, top: GROUND - 37 };
-  const wing = 30;
+  const portal = { half: 26 * CELL, top: GROUND - 37 };
+  const firstBay = 36 * CELL; // centre of the bay nearest the portal
+  const wing = firstBay + 2 * BAY_PITCH + 8 * CELL; // end of the wing
 
   // Portal
   if (dx <= portal.half && y >= portal.top && y <= GROUND) {
@@ -240,7 +256,7 @@ paint((x, y) => {
     if (y >= portal.top + 2.2 && y <= portal.top + 4.6) return T.script; // calligraphy
     // Blind niches stacked on each side of the arch, three high.
     for (const base of [GROUND - 1, GROUND - 9, GROUND - 17]) {
-      if (inArch(dx, y, 8, base, 1.8, 5.5)) return T.frame;
+      if (inArch(dx, y, 20 * CELL, base, 4 * CELL, 5.5)) return T.frame;
     }
     return T.wall;
   }
@@ -248,15 +264,16 @@ paint((x, y) => {
   // Twin domes on drums, well clear of the portal.
   for (const side of [-1, 1]) {
     const dome = domeOnDrum(x, y, {
-      cx: cx + side * 21.5, drumTop: wallTop - 5, r: 6.2, h: 7, drumHalf: 5.6, drumH: 5, base: 3 / 16,
+      cx: cx + side * 54 * CELL, drumTop: wallTop - 5, r: 6.2, h: 7, drumHalf: 5.6, drumH: 5, base: 3 / 16,
     });
     if (dome !== null) return dome;
   }
 
   // Corner towers (guldasta) at both ends.
-  if (Math.abs(dx - wing) <= 1.8) {
+  const tower = wing + 2 * CELL;
+  if (Math.abs(dx - tower) <= 4 * CELL) {
     if (y >= wallTop - 3 && y <= GROUND) return T.frame;
-    const cap = inDome(dx, y, wing, wallTop - 3, 1.8, 2);
+    const cap = inDome(dx, y, tower, wallTop - 3, 4 * CELL, 2);
     if (cap !== null) return T.band;
   }
 
@@ -264,7 +281,7 @@ paint((x, y) => {
   if (dx <= wing && y >= wallTop && y <= GROUND) {
     if (y < wallTop + 1) return T.frame; // parapet
     for (const k of [0, 1, 2]) {
-      const bx = portal.half + 4 + k * 5.6;
+      const bx = firstBay + k * BAY_PITCH;
       const v = bay(dx, y, bx, GROUND, 6.5) ?? bay(dx, y, bx, GROUND - 8.5, 5.8);
       if (v !== null) return v;
     }
@@ -295,7 +312,11 @@ let marks = 0;
 for (let row = 0; row < ROWS; row++)
   for (let col = 0; col < COLS; col++) {
     const i = row * COLS + col;
-    if (field[i] > (BAYER[row % 8][col % 8] + 0.5) / 64) {
+    // Inside a monument, count columns outward from its axis (mirrored).
+    const x = (col + 0.5) * CELL;
+    const axis = AXES.find((a) => Math.abs(x - a.x) <= a.half);
+    const c = axis ? Math.abs(col - Math.round(axis.x / CELL - 0.5)) : col;
+    if (field[i] > (BAYER[row % 8][c % 8] + 0.5) / 64) {
       bytes[i >> 3] |= 1 << (i & 7);
       marks++;
     }
