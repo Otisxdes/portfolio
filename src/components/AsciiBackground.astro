@@ -17,11 +17,37 @@
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const FPS = 30; // plenty for a slow sweep, half the work of 60
   const BAND = 0.28; // width of the light band, as a share of the art width
-  const MIN_CELL = 3; // px — smallest mark spacing (phones)
-  const FOCUS_X = 0.775; // where to centre when the art is wider than the screen (Mir-i-Arab)
+  const MIN_CELL = 2.5; // px — smallest mark spacing, so marks stay visible on phones
+  const BAYER = [
+    [0, 32, 8, 40, 2, 34, 10, 42],
+    [48, 16, 56, 24, 50, 18, 58, 26],
+    [12, 44, 4, 36, 14, 46, 6, 38],
+    [60, 28, 52, 20, 62, 30, 54, 22],
+    [3, 35, 11, 43, 1, 33, 9, 41],
+    [51, 19, 59, 27, 49, 17, 57, 25],
+    [15, 47, 7, 39, 13, 45, 5, 37],
+    [63, 31, 55, 23, 61, 29, 53, 21],
+  ];
   // 1 bit per cell, row-major (see scripts/ascii-art.mjs).
-  const bits = Uint8Array.from(atob(asciiArt.bits), (c) => c.charCodeAt(0));
-  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+  // Unpack the tone field: 4 bits per cell → 0–1.
+  const packed = Uint8Array.from(atob(asciiArt.tone), (c) => c.charCodeAt(0));
+  const tone = new Float32Array(asciiArt.cols * asciiArt.rows);
+  for (let i = 0; i < tone.length; i++) {
+    tone[i] = ((packed[i >> 1] >> (i & 1 ? 4 : 0)) & 15) / asciiArt.levels;
+  }
+
+  // Average tone over a rectangle of source cells (smooth downscaling).
+  const sample = (x0: number, y0: number, x1: number, y1: number) => {
+    const c0 = Math.floor(x0), c1 = Math.max(c0 + 1, Math.ceil(x1));
+    const r0 = Math.floor(y0), r1 = Math.max(r0 + 1, Math.ceil(y1));
+    let sum = 0, n = 0;
+    for (let r = r0; r < r1 && r < asciiArt.rows; r++)
+      for (let c = c0; c < c1 && c < asciiArt.cols; c++) {
+        sum += tone[r * asciiArt.cols + c];
+        n++;
+      }
+    return n ? sum / n : 0;
+  };
 
   const setup = () => {
     const canvas = document.querySelector<HTMLCanvasElement>('[data-ascii-bg]');
@@ -59,15 +85,14 @@
       canvas.width = glow.width = Math.round(vw * dpr);
       canvas.height = glow.height = Math.round(vh * dpr);
 
-      // Edge to edge: the grid spans the full window width, anchored to the
-      // bottom (on short windows the airy top is what gets cut off).
-      // On phones the marks keep a minimum size and the view centres on the
-      // portal instead of shrinking the whole monument.
-      const cell = Math.max(vw / asciiArt.cols, MIN_CELL) * dpr;
-      box = { w: asciiArt.cols * cell, h: asciiArt.rows * cell, x: 0, y: 0 };
-      const overflow = box.w - canvas.width; // 0 on desktop
-      box.x = -Math.round(clamp(box.w * FOCUS_X - canvas.width / 2, 0, overflow));
-      box.y = Math.round(canvas.height - box.h);
+      // Responsive: the whole landscape always spans the window width.
+      // Mark spacing is ~4px on desktop; on narrow screens the grid gets
+      // coarser instead of the marks shrinking, so they stay visible.
+      const cols = Math.round(vw / Math.max(vw / asciiArt.cols, MIN_CELL));
+      const rows = Math.round((cols * asciiArt.rows) / asciiArt.cols);
+      const cell = (vw / cols) * dpr; // exact fit, in device pixels
+      box = { w: cols * cell, h: rows * cell, x: 0, y: 0 };
+      box.y = Math.round(canvas.height - box.h); // anchored to the bottom
 
       art.width = Math.ceil(box.w);
       art.height = Math.ceil(box.h);
@@ -80,10 +105,14 @@
       const stroke = Math.max(1, Math.round(cell * 0.18));
       const inset = Math.round((cell - arm) / 2);
       const mid = Math.round((cell - stroke) / 2);
-      for (let row = 0; row < asciiArt.rows; row++) {
-        for (let col = 0; col < asciiArt.cols; col++) {
-          const i = row * asciiArt.cols + col;
-          if (!((bits[i >> 3] >> (i & 7)) & 1)) continue;
+      // Dither: each grid cell gets the mark if its tone beats the
+      // ordered (Bayer) threshold for that position.
+      const sx = asciiArt.cols / cols;
+      const sy = asciiArt.rows / rows;
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const v = sample(col * sx, row * sy, (col + 1) * sx, (row + 1) * sy);
+          if (v <= (BAYER[row % 8][col % 8] + 0.5) / 64) continue;
           const x = Math.round(col * cell);
           const y = Math.round(row * cell);
           artCtx.fillRect(x + inset, y + mid, arm, stroke);
