@@ -1,19 +1,20 @@
 /* Draws the homepage background: a panoramic landscape of Bukhara's old
-   city, composed from scratch (no photo tracing) and dithered into a
-   single repeated mark.
+   city — a large mosque dome, the Kalyan minaret and Mir-i-Arab — composed
+   from scratch and dithered into a single repeated mark.
 
    Run:  npm run ascii
    Out:  src/data/ascii-art.ts  (generated — don't edit by hand, re-run instead)
 
    How it works:
-   1. A "scene" is painted back-to-front into a tone field (0 = empty,
-      1 = densest). Each landmark is a small function of simple shapes —
-      pointed arches, onion domes, tapered minarets — lit from the left.
-   2. Atmosphere: far layers are fainter, the edges and the bottom denser,
-      and the middle is calmed so the content column stays readable.
-   3. Ordered (Bayer) dither on a fine square grid: each cell either gets
-      the mark or stays empty. Tone is carried purely by mark density, like
-      a halftone print; silhouettes stay crisp because nothing is blurred.
+   1. Each monument is built from simple, exact shapes (pointed arches,
+      domes, a tapered shaft) in a strict, symmetric layout, lit from the
+      left in three steps: lit, mid, shadow.
+   2. Every tone is snapped to a small set of fixed values. Each surface
+      therefore gets one clean, regular dither pattern — no noise, no
+      gradients that would scatter marks randomly.
+   3. Monument centre lines sit exactly on the grid, so left and right
+      halves dither identically.
+   4. Ordered (Bayer) dither: each cell gets the mark or stays empty.
    The result is stored as packed bits (1 = draw the mark).
 
    Units: the scene is 144 × 66 units; each grid cell is CELL units square. */
@@ -28,7 +29,20 @@ const CELL = 0.4; // grid cell size in units → 360 × 165 cells (≈4px on 144
 const COLS = Math.round(W / CELL);
 const ROWS = Math.round(H / CELL);
 const GROUND = H * 0.9; // where buildings meet the plaza
-const SEED = 7; // change for a different far-skyline rhythm
+
+// ---- Tones ---------------------------------------------------------------------
+// The whole palette. Multiples of 1/16 give clean, regular dither patterns.
+const T = {
+  roofline: 2 / 16, // distant flat roofs
+  wall: 2 / 16, // plain brick
+  plaza: 3 / 16,
+  frame: 4 / 16, // tile frames, panels, parapets
+  band: 6 / 16, // borders and bands
+  script: 7 / 16, // calligraphy band
+  niche: 11 / 16, // arched openings
+  iwan: 12 / 16, // the deep portal arch
+  door: 15 / 16,
+};
 
 // ---- Helpers ---------------------------------------------------------------
 const clamp = (v, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, v));
@@ -36,52 +50,40 @@ const smooth = (a, b, v) => {
   const t = clamp((v - a) / (b - a));
   return t * t * (3 - 2 * t);
 };
-
-// Deterministic randomness, so every run draws the same city.
-let seed = SEED;
-const rand = () => {
-  seed = (seed * 16807) % 2147483647;
-  return (seed - 1) / 2147483646;
-};
-
-// Smooth value noise for organic, low-frequency variation in tone.
-const hash = (x, y) => {
-  const s = Math.sin(x * 127.1 + y * 311.7 + SEED) * 43758.5453;
-  return s - Math.floor(s);
-};
-const noise = (x, y) => {
-  const xi = Math.floor(x), yi = Math.floor(y);
-  const xf = x - xi, yf = y - yi;
-  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
-  const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1);
-  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
-};
+// Put a centre line exactly in the middle of a grid cell, so shapes
+// mirrored around it land on mirrored cells.
+const snap = (x) => (Math.round(x / CELL - 0.5) + 0.5) * CELL;
 
 // ---- Shape primitives ------------------------------------------------------
 const inRect = (x, y, x0, y0, x1, y1) => x >= x0 && x <= x1 && y >= y0 && y <= y1;
 
-// Pointed (two-centred) arch standing on `base`, `w` wide, `h` tall.
+// Pointed (two-centred) arch standing on `base`, `w` wide, `h` tall:
+// straight sides, then two circular arcs that meet in a point.
 const inArch = (x, y, cx, base, w, h) => {
   const half = w / 2;
+  const R = half * 1.6; // arc radius
+  const off = R - half; // arc centres sit this far from the middle
+  const rise = Math.sqrt(R * R - off * off); // spring line → apex
   const top = base - h;
-  const spring = top + Math.min(h * 0.75, half * 1.35);
+  const spring = Math.max(top + rise, top);
   if (y > base || y < top) return false;
-  const dx = Math.abs(x - cx);
-  if (y >= spring) return dx <= half;
-  const rise = (spring - y) / (spring - top); // 0 at spring → 1 at the point
-  return dx <= half * Math.sqrt(1 - rise ** 1.5);
+  if (y >= spring) return Math.abs(x - cx) <= half;
+  return Math.hypot(x - (cx + off), y - spring) <= R && Math.hypot(x - (cx - off), y - spring) <= R;
 };
 
-// Onion-ish dome sitting on `base`: radius r, height h. Returns the
-// horizontal position across the dome (-1…1) for shading, or null.
+// Dome sitting on `base`: a smooth half-ellipse, radius r, height h.
+// Returns the horizontal position across the dome (-1…1), or null.
 const inDome = (x, y, cx, base, r, h) => {
   if (y > base || y < base - h) return null;
-  const t = (base - y) / h; // 0 at base → 1 at tip
-  const bulge = 1 + 0.12 * Math.sin(t * Math.PI * 0.9); // slight swell
-  const width = r * bulge * Math.sqrt(clamp(1 - t ** 2.2));
+  const t = (base - y) / h; // 0 at base → 1 at the crown
+  const width = r * Math.sqrt(1 - t * t);
   const dx = x - cx;
   return Math.abs(dx) <= width ? dx / (width || 1) : null;
 };
+
+// Light from the left in three clean steps: 0 (lit), ½ (mid), 1 (shadow).
+const step = (rel) => (rel < -0.35 ? 0 : rel < 0.35 ? 0.5 : 1);
+const shade = (rel, amount) => step(rel) * amount;
 
 // ---- The scene -------------------------------------------------------------
 // Tone field, painted back-to-front. Later layers cover earlier ones.
@@ -96,73 +98,67 @@ const paint = (fn) => {
     }
 };
 
-// Light comes from the left: rel -1 (left) … 1 (right) → darker on the right.
-const shade = (rel, amount) => (rel + 1) * 0.5 * amount;
-
-// 1. Sky — empty, so every silhouette reads cleanly against it.
-paint(() => 0);
-
-// 2. Far skyline — the old city's rhythm: flat roofs, small domes, minarets.
-{
-  const buildings = [];
-  let x = -4;
-  while (x < W + 4) {
-    const w = 5 + rand() * 11;
-    const h = 3 + rand() * 6;
-    const roll = rand();
-    buildings.push({
-      x0: x,
-      x1: x + w,
-      top: GROUND - 3 - h,
-      dome: roll < 0.4 ? { r: 1.6 + rand() * 2.2 } : null,
-      minaret: roll > 0.88 ? { h: 9 + rand() * 9 } : null,
-    });
-    x += w + rand() * 1.5;
-  }
-  paint((x, y) => {
-    for (const b of buildings) {
-      const tone = 0.26 + noise(x * 0.3, y * 0.3) * 0.06;
-      if (inRect(x, y, b.x0, b.top, b.x1, GROUND)) return tone;
-      const cx = (b.x0 + b.x1) / 2;
-      if (b.dome) {
-        const d = inDome(x, y, cx, b.top, b.dome.r, b.dome.r * 1.3);
-        if (d !== null) return tone + shade(d, 0.12);
-      }
-      if (b.minaret && inRect(x, y, cx - 0.6, b.top - b.minaret.h, cx + 0.6, b.top)) return tone + 0.03;
-    }
-    return null;
-  });
-}
-
-// 3. Left foreground — a large mosque dome and arcade, cut by the edge.
-paint((x, y) => {
-  const wallTop = GROUND - 15;
-  const drumTop = wallTop - 4;
-  const cx = 10;
-  const d = inDome(x, y, cx, drumTop, 15, 17);
+// A dome on a drum with a finial: the shared form for every dome.
+const domeOnDrum = (x, y, { cx, drumTop, r, h, drumHalf, drumH, base }) => {
+  const d = inDome(x, y, cx, drumTop, r, h);
   if (d !== null) {
-    const ribs = Math.abs(Math.sin((d + 1) * 7)) < 0.15 ? 0.08 : 0;
-    return 0.2 + shade(d, 0.5) + ribs;
+    // Shade as a sphere lit from the upper left, in three steps, so the
+    // light and shadow areas curve with the surface.
+    const t = (drumTop - y) / h;
+    const nx = d * Math.sqrt(1 - t * t);
+    const light = -0.75 * nx + 0.66 * t;
+    return base + (light > 0.3 ? 0 : light > -0.2 ? 2 / 16 : 4 / 16);
   }
-  if (inRect(x, y, cx - 0.25, drumTop - 20, cx + 0.25, drumTop - 17)) return 0.5; // finial
-  if (inRect(x, y, cx - 14, drumTop, cx + 14, wallTop)) return y < drumTop + 1.5 ? 0.55 : 0.42; // drum
-  if (inRect(x, y, -2, wallTop, 30, GROUND)) {
-    for (let i = 0; i < 6; i++) {
-      const ax = 2.5 + i * 5;
-      if (inArch(x, y, ax, GROUND, 3.4, 8)) return 0.86;
-      if (inArch(x, y, ax, GROUND - 9, 3.4, 4.5)) return 0.74;
-    }
-    return 0.26 + noise(x * 0.5, y * 0.5) * 0.06;
+  if (Math.abs(x - cx) < CELL && y < drumTop - h && y > drumTop - h - r * 0.4) return T.band; // finial
+  if (Math.abs(x - cx) <= drumHalf && y >= drumTop && y <= drumTop + drumH) {
+    return y < drumTop + 1 ? T.band : base + shade((x - cx) / drumHalf, 0.12);
   }
   return null;
+};
+
+// One bay of a two-storey arcade: a tile frame around a pointed niche.
+const bay = (x, y, cx, base, h) => {
+  if (inArch(x, y, cx, base, 3.4, h)) return T.niche;
+  if (inRect(x, y, cx - 2.5, base - h - 1, cx + 2.5, base)) return T.frame;
+  return null;
+};
+
+// 1. Distant roofline — low, flat roofs with small domes at an even pitch,
+//    seen only in the gaps between the monuments.
+paint((x, y) => {
+  if (y >= GROUND || y < GROUND - 7) return null;
+  if (y >= GROUND - 4) return T.roofline;
+  const pitch = 12;
+  const cx = snap(Math.round(x / pitch) * pitch);
+  return inDome(x, y, cx, GROUND - 4, 1.8, 2.4) !== null ? T.roofline : null;
 });
 
-// 4. Kalyan minaret (Minorai Kalon) — the tower that defines Bukhara's
+// 2. Large mosque dome over a symmetric arcade, left edge.
+paint((x, y) => {
+  const cx = snap(16);
+  const wallTop = GROUND - 15.5;
+  const drumTop = wallTop - 3.5;
+  const dome = domeOnDrum(x, y, {
+    cx, drumTop, r: 12.5, h: 13.5, drumHalf: 11, drumH: 3.5, base: 3 / 16,
+  });
+  if (dome !== null) return dome;
+  if (!inRect(x, y, cx - 16, wallTop, cx + 16, GROUND)) return null;
+  if (y < wallTop + 1) return T.frame; // parapet
+  for (const k of [0, 1, 2])
+    for (const side of [-1, 1]) {
+      const bx = cx + side * (2.67 + k * 5.33);
+      const v = bay(x, y, bx, GROUND, 6.2) ?? bay(x, y, bx, GROUND - 8, 5.4);
+      if (v !== null) return v;
+    }
+  return T.wall;
+});
+
+// 3. Kalyan minaret (Minorai Kalon) — the tower that defines Bukhara's
 //    skyline. Top to bottom: small cone, flared stalactite cornice, lantern
 //    with a ring of arched windows, a band of fine brickwork, a thin tile
 //    band, then a strongly tapered shaft wrapped in bands of brick pattern.
 paint((x, y) => {
-  const cx = W * 0.27;
+  const cx = snap(W * 0.3);
   const crown = GROUND - 50; // top of the cornice
   const dx = x - cx;
   const lit = (half) => shade(dx / half, 0.3); // darker toward the right
@@ -217,99 +213,71 @@ paint((x, y) => {
   return 0.18 + lit(half) + (pattern ? 0.22 : 0);
 });
 
-// 5. Mir-i-Arab — twin domes, the portal (pishtaq) and arcaded wings.
+// 4. Mir-i-Arab — the portal (pishtaq) between twin domes, with two-storey
+//    arcaded wings and corner towers. Everything mirrors around `cx`.
 paint((x, y) => {
-  const cx = W * 0.775; // portal centre line
-  const wingL = cx - 30;
-  const wingR = cx + 30;
-  const wallTop = GROUND - 17;
-  const portalHalf = 8.5;
-  const portalTop = GROUND - 35;
-
-  // Domes behind the portal, one each side
-  for (const side of [-1, 1]) {
-    const dx0 = cx + side * 16;
-    const drumTop = wallTop - 6;
-    const d = inDome(x, y, dx0, drumTop, 7.5, 10);
-    if (d !== null) {
-      const ribs = Math.abs(Math.sin((d + 1) * 6)) < 0.18 ? 0.07 : 0;
-      return 0.2 + shade(d, 0.55) + ribs;
-    }
-    if (inRect(x, y, dx0 - 0.2, drumTop - 12.5, dx0 + 0.2, drumTop - 10)) return 0.5; // finial
-    if (inRect(x, y, dx0 - 6.8, drumTop, dx0 + 6.8, wallTop)) {
-      const script = y < drumTop + 2 && noise(x * 1.7, y * 2) > 0.45 ? 0.15 : 0; // calligraphy band
-      return 0.44 + shade((x - dx0) / 6.8, 0.15) + script;
-    }
-  }
+  const cx = snap(W * 0.775);
+  const dx = Math.abs(x - cx); // distance from the centre line
+  const wallTop = GROUND - 16;
+  const portal = { half: 10.5, top: GROUND - 37 };
+  const wing = 30;
 
   // Portal
-  if (inRect(x, y, cx - portalHalf, portalTop, cx + portalHalf, GROUND)) {
-    const fromEdge = Math.min(x - (cx - portalHalf), cx + portalHalf - x, y - portalTop);
-    if (inArch(x, y, cx, GROUND, 10, 25)) {
-      // The iwan: deep, darkest high in the vault, small niches below
-      if (inRect(x, y, cx - 1.1, GROUND - 4.5, cx + 1.1, GROUND)) return 0.97; // door
-      for (const nx of [-3, 3]) {
-        if (inArch(x, y, cx + nx, GROUND - 1, 2.2, 5)) return 0.6;
-        if (inArch(x, y, cx + nx, GROUND - 8, 2.2, 4.5)) return 0.62;
-      }
-      return 0.84 + smooth(GROUND, GROUND - 25, y) * 0.16;
-    }
-    if (fromEdge < 1.2) return 0.5; // outer frame
-    if (y < portalTop + 3.2) return noise(x * 1.8, y * 2.5) > 0.42 ? 0.5 : 0.3; // calligraphy
-    if (inArch(x, y, cx, GROUND, 12.5, 27.5)) return 0.46; // tile border hugging the arch
-    const panel = Math.abs(x - cx) > 6 && Math.sin(y * 0.55) > 0.2; // tiled panels
-    return panel ? 0.26 : 0.16;
-  }
-
-  // Corner towers (guldasta) at the ends of the wings
-  for (const tx of [wingL, wingR]) {
-    if (inRect(x, y, tx - 2, wallTop - 3, tx + 2, GROUND)) return 0.4 + shade((x - tx) / 2, 0.22);
-    const d = inDome(x, y, tx, wallTop - 3, 2, 2.4);
-    if (d !== null) return 0.42 + shade(d, 0.2);
-  }
-
-  // Wings: two storeys of pointed niches with tiled spandrels
-  if (inRect(x, y, wingL, wallTop, wingR, GROUND)) {
-    const span = 5.4;
-    for (const [base, h] of [[GROUND, 6.5], [GROUND - 8, 6]]) {
-      for (let i = 0; i * span < 21; i++) {
-        for (const side of [-1, 1]) {
-          const ax = cx + side * (portalHalf + 3.4 + i * span);
-          if (Math.abs(ax - cx) > 29) continue;
-          if (inArch(x, y, ax, base, 3.6, h)) return 0.78;
-          if (inRect(x, y, ax - 2.4, base - h - 1.2, ax + 2.4, base - h)) return 0.38;
+  if (dx <= portal.half && y >= portal.top && y <= GROUND) {
+    // The iwan: one deep pointed arch, a door and small niches inside it.
+    if (inArch(x, y, cx, GROUND, 11, 27)) {
+      if (dx <= 1.2 && y >= GROUND - 5) return T.door;
+      for (const nx of [-3.2, 3.2]) {
+        if (inArch(x, y, cx + nx, GROUND - 1, 2, 4.4) || inArch(x, y, cx + nx, GROUND - 8, 2, 4.4)) {
+          return T.band;
         }
       }
+      return y < GROUND - 16 ? T.iwan + 2 / 16 : T.iwan;
     }
-    if (y < wallTop + 1) return 0.5; // parapet
-    return 0.2 + noise(x * 0.6, y * 0.6) * 0.05;
+    if (inArch(x, y, cx, GROUND, 13.4, 28.4)) return T.band; // border hugging the arch
+    const fromEdge = Math.min(portal.half - dx, y - portal.top);
+    if (fromEdge < 1.2) return T.band; // outer frame
+    if (y >= portal.top + 2.2 && y <= portal.top + 4.6) return T.script; // calligraphy
+    // Blind niches stacked on each side of the arch, three high.
+    for (const base of [GROUND - 1, GROUND - 9, GROUND - 17]) {
+      if (inArch(dx, y, 8, base, 1.8, 5.5)) return T.frame;
+    }
+    return T.wall;
+  }
+
+  // Twin domes on drums, well clear of the portal.
+  for (const side of [-1, 1]) {
+    const dome = domeOnDrum(x, y, {
+      cx: cx + side * 21.5, drumTop: wallTop - 5, r: 6.2, h: 7, drumHalf: 5.6, drumH: 5, base: 3 / 16,
+    });
+    if (dome !== null) return dome;
+  }
+
+  // Corner towers (guldasta) at both ends.
+  if (Math.abs(dx - wing) <= 1.8) {
+    if (y >= wallTop - 3 && y <= GROUND) return T.frame;
+    const cap = inDome(dx, y, wing, wallTop - 3, 1.8, 2);
+    if (cap !== null) return T.band;
+  }
+
+  // Wings: three bays per side in two storeys, a pier between each.
+  if (dx <= wing && y >= wallTop && y <= GROUND) {
+    if (y < wallTop + 1) return T.frame; // parapet
+    for (const k of [0, 1, 2]) {
+      const bx = portal.half + 4 + k * 5.6;
+      const v = bay(dx, y, bx, GROUND, 6.5) ?? bay(dx, y, bx, GROUND - 8.5, 5.8);
+      if (v !== null) return v;
+    }
+    return T.wall;
   }
   return null;
 });
 
-// 6. Plaza — the ground in front, densest at the bottom edge, paved.
-paint((x, y) => {
-  if (y < GROUND) return null;
-  const t = (y - GROUND) / (H - GROUND);
-  const paving = Math.sin(y * 3.2) > 0.85 ? 0.06 : 0;
-  return 0.2 + t * 0.32 + paving + noise(x * 0.4, y) * 0.04;
-});
+// 5. Plaza — paved ground in front, slightly denser toward the bottom.
+paint((x, y) => (y < GROUND ? null : y < (GROUND + H) / 2 ? T.plaza : T.frame));
 
-// ---- Atmosphere & composition ----------------------------------------------
-for (let row = 0; row < ROWS; row++)
-  for (let col = 0; col < COLS; col++) {
-    const i = row * COLS + col;
-    const x = (col + 0.5) * CELL;
-    const y = (row + 0.5) * CELL;
-    const fx = x / W - 0.5; // -0.5 … 0.5
-    // Denser toward the outer edges and the bottom
-    const edge = Math.abs(fx) * 2;
-    let v = field[i] * (0.82 + 0.28 * edge ** 2) + 0.06 * smooth(GROUND - 6, H, y);
-    // Calm the middle, where the content column sits
-    const centre = Math.exp(-((fx / 0.17) ** 2));
-    v *= 1 - centre * (y < GROUND ? 0.3 : 0.2);
-    field[i] = clamp(v);
-  }
+// ---- Snap every tone to the palette grid (1/16 steps) -----------------------
+for (let i = 0; i < field.length; i++) field[i] = Math.round(clamp(field[i]) * 16) / 16;
 
 // ---- Ordered dither → bits ---------------------------------------------------
 const BAYER = [
