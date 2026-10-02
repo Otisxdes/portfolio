@@ -66,7 +66,7 @@
      Resting strength, then the moving light that passes over it. */
   --ascii-color: var(--color-text);
   --ascii-opacity: 0.08;
-  --ascii-opacity-peak: 0.13; /* at the brightest point of the moving light */
+  --ascii-opacity-peak: 0.22; /* at the brightest point of the moving light */
   --ascii-pass-duration: 13s; /* one pass, left edge → right edge, linear */
   --ascii-light-width: 45vw; /* width of the soft light band */
 
