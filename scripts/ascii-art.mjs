@@ -184,26 +184,35 @@ paint((x, y) => {
     const half = 1.8 * (1 - t) ** 0.8;
     return Math.abs(dx) <= half ? 0.36 + lit(half || 1) : null;
   }
-  // Crown: two stepped tiers of corbelling, widest at the top, each with a
-  // shadowed underside — the stalactite cornice, simplified.
+  // Openings are laid out in whole cells from the axis: one centred, the
+  // rest every 5 cells, so each pier between them is 2 cells wide. On the
+  // round tower the outer ones turn away from us, so they're drawn
+  // narrower (foreshortened): 3, 3, then 1 cell wide.
+  const dc = Math.round(Math.abs(dx) / CELL); // whole cells from the axis
+  const k = Math.round(dc / 5);
+  const halfW = [1, 1, 0][k] ?? -1; // half-width in cells, -1 = none
+  const opening = (top, base) =>
+    halfW >= 0 && inArch((dc - k * 5) * CELL, y, 0, base, (2 * halfW + 1) * CELL, base - top);
+
+  // Crown: two stepped tiers of corbelling, widest at the top. The upper
+  // tier has a shadowed underside; the lower tier carries a row of small
+  // blind arches, as on the real cornice.
   if (y < crown + 4) {
-    const tier = y < crown + 2 ? 0 : 1;
-    const half = tier === 0 ? 4.8 : 4.3;
+    const upper = y < crown + 2;
+    const half = upper ? 4.8 : 4.3;
     if (Math.abs(dx) > half) return null;
-    const underside = y > crown + (tier === 0 ? 1.4 : 3.4);
-    return 5 / 16 + lit(half) + (underside ? 3 / 16 : 0);
+    if (upper) return 5 / 16 + lit(half) + (y > crown + 1.4 ? 3 / 16 : 0);
+    if (opening(crown + 2.4, crown + 3.8)) return T.band + 2 / 16;
+    return 4 / 16 + lit(half);
   }
-  // Lantern: the only openings on the tower — a ring of tall arched
-  // windows, one centred on the axis.
+  // Lantern: the tower's real openings — a ring of tall pointed arches
+  // between slim piers, dark against the lighter brick.
   if (y < crown + 9.5) {
     const half = 3.9;
     if (Math.abs(dx) > half) return null;
-    const winTop = crown + 5;
-    const winBase = crown + 8.6;
-    const span = 4 * CELL;
-    const local = ((Math.abs(dx) + span / 2) % span) - span / 2;
-    if (inArch(local, y, 0, winBase, 0.75, winBase - winTop)) return T.niche;
-    return 5 / 16 + lit(half);
+    if (opening(crown + 4.6, crown + 9)) return T.door;
+    if (half - Math.abs(dx) < 0.8) return 5 / 16 + lit(half); // solid outer edge keeps the silhouette
+    return 1 / 16 + lit(half) * 0.5; // light piers so the arches read
   }
   // Shaft: one continuous, solid surface tapering from 3.8 under the
   // lantern to 6.0 at the ground (about the real tower's 1.6 : 1).
