@@ -1,5 +1,6 @@
-/* Draws the homepage background: a panoramic ASCII landscape of Bukhara's
-   old city, composed from scratch (no photo tracing).
+/* Draws the homepage background: a panoramic landscape of Bukhara's old
+   city, composed from scratch (no photo tracing) and dithered into a
+   single repeated mark.
 
    Run:  npm run ascii
    Out:  src/data/ascii-art.ts  (generated — don't edit by hand, re-run instead)
@@ -10,22 +11,22 @@
       pointed arches, onion domes, tapered minarets — lit from the left.
    2. Atmosphere: far layers are fainter, the edges and the bottom denser,
       and the middle is calmed so the content column stays readable.
-   3. Tone → character through a dither (ordered Bayer + a little random),
-      so neighbouring cells blend between characters like a halftone print.
+   3. Ordered (Bayer) dither on a fine square grid: each cell either gets
+      the mark or stays empty. Tone is carried purely by mark density, like
+      a halftone print; silhouettes stay crisp because nothing is blurred.
+   The result is stored as packed bits (1 = draw the mark).
 
-   Units: 1 unit = one row of text. A character is 0.6 units wide, so
-   shapes keep their real proportions on screen. */
+   Units: the scene is 144 × 66 units; each grid cell is CELL units square. */
 import { writeFileSync } from 'node:fs';
 
 const OUT = 'src/data/ascii-art.ts';
 
-// ---- Canvas & character set -----------------------------------------------
-const COLS = 240;
-const ROWS = 66;
-const CHAR_W = 0.6; // character width ÷ line height
-const RAMP = ' .,:;+*#%@'; // light → dense
-const W = COLS * CHAR_W; // scene width in units (144)
-const H = ROWS; // scene height in units
+// ---- Scene & grid -----------------------------------------------------------
+const W = 144; // scene width in units
+const H = 66; // scene height in units
+const CELL = 0.4; // grid cell size in units → 360 × 165 cells (≈4px on 1440px)
+const COLS = Math.round(W / CELL);
+const ROWS = Math.round(H / CELL);
 const GROUND = H * 0.9; // where buildings meet the plaza
 const SEED = 7; // change for a different far-skyline rhythm
 
@@ -90,7 +91,7 @@ const field = new Float32Array(COLS * ROWS);
 const paint = (fn) => {
   for (let row = 0; row < ROWS; row++)
     for (let col = 0; col < COLS; col++) {
-      const v = fn((col + 0.5) * CHAR_W, row + 0.5);
+      const v = fn((col + 0.5) * CELL, (row + 0.5) * CELL);
       if (v !== null && v !== undefined) field[row * COLS + col] = v;
     }
 };
@@ -98,8 +99,8 @@ const paint = (fn) => {
 // Light comes from the left: rel -1 (left) … 1 (right) → darker on the right.
 const shade = (rel, amount) => (rel + 1) * 0.5 * amount;
 
-// 1. Sky — nearly empty, a faint haze thickening toward the horizon.
-paint((x, y) => smooth(H * 0.5, GROUND, y) * 0.05 * noise(x * 0.05, y * 0.2));
+// 1. Sky — empty, so every silhouette reads cleanly against it.
+paint(() => 0);
 
 // 2. Far skyline — the old city's rhythm: flat roofs, small domes, minarets.
 {
@@ -267,8 +268,8 @@ paint((x, y) => {
 for (let row = 0; row < ROWS; row++)
   for (let col = 0; col < COLS; col++) {
     const i = row * COLS + col;
-    const x = (col + 0.5) * CHAR_W;
-    const y = row + 0.5;
+    const x = (col + 0.5) * CELL;
+    const y = (row + 0.5) * CELL;
     const fx = x / W - 0.5; // -0.5 … 0.5
     // Denser toward the outer edges and the bottom
     const edge = Math.abs(fx) * 2;
@@ -276,12 +277,10 @@ for (let row = 0; row < ROWS; row++)
     // Calm the middle, where the content column sits
     const centre = Math.exp(-((fx / 0.17) ** 2));
     v *= 1 - centre * (y < GROUND ? 0.3 : 0.2);
-    // A little organic grain everywhere
-    if (v > 0.08) v += (noise(x * 0.9, y * 0.9) - 0.5) * 0.05;
     field[i] = clamp(v);
   }
 
-// ---- Tone → characters with ordered dithering ------------------------------
+// ---- Ordered dither → bits ---------------------------------------------------
 const BAYER = [
   [0, 32, 8, 40, 2, 34, 10, 42],
   [48, 16, 56, 24, 50, 18, 58, 26],
@@ -292,29 +291,26 @@ const BAYER = [
   [15, 47, 7, 39, 13, 45, 5, 37],
   [63, 31, 55, 23, 61, 29, 53, 21],
 ];
-const steps = RAMP.length - 1;
-const lines = [];
-for (let row = 0; row < ROWS; row++) {
-  let line = '';
+const bytes = new Uint8Array(Math.ceil((COLS * ROWS) / 8));
+let marks = 0;
+for (let row = 0; row < ROWS; row++)
   for (let col = 0; col < COLS; col++) {
-    // Half ordered (halftone texture), half random (breaks up the grid so
-    // light areas don't look mechanical).
-    const threshold = 0.55 * ((BAYER[row % 8][col % 8] + 0.5) / 64) + 0.45 * hash(col * 1.3, row * 2.1);
-    const level = Math.floor(field[row * COLS + col] * steps + threshold);
-    line += RAMP[clamp(level, 0, steps)];
+    const i = row * COLS + col;
+    if (field[i] > (BAYER[row % 8][col % 8] + 0.5) / 64) {
+      bytes[i >> 3] |= 1 << (i & 7);
+      marks++;
+    }
   }
-  lines.push(line.replace(/\s+$/, ''));
-}
 
 const file = `/* GENERATED by scripts/ascii-art.mjs — edit the script, not this file.
-   Bukhara old city, ${COLS}×${ROWS} characters, composed from scratch. */
+   Bukhara old city, ${COLS}×${ROWS} cells, dithered to one mark.
+   \`bits\`: base64, row-major, 1 bit per cell (1 = draw the mark). */
 export const asciiArt = {
   cols: ${COLS},
   rows: ${ROWS},
-  charWidth: ${CHAR_W},
-  lines: ${JSON.stringify(lines, null, 2)},
+  bits: '${Buffer.from(bytes).toString('base64')}',
 };
 `;
 
 writeFileSync(OUT, file);
-console.log(`→ ${OUT} (${COLS}×${ROWS})`);
+console.log(`→ ${OUT} (${COLS}×${ROWS}, ${marks} marks)`);
