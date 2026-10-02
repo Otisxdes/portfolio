@@ -168,9 +168,9 @@ paint((x, y) => {
 });
 
 // 3. Kalyan minaret (Minorai Kalon) — the tower that defines Bukhara's
-//    skyline. Top to bottom: small cone, flared stalactite cornice, lantern
-//    with a ring of arched windows, a band of fine brickwork, a thin tile
-//    band, then a strongly tapered shaft wrapped in bands of brick pattern.
+//    skyline. Top to bottom: small cone, stepped stalactite cornice, lantern
+//    with a ring of arched windows (its only openings), the tile band, then
+//    a solid tapered shaft divided by thin rings.
 paint((x, y) => {
   const cx = MINARET;
   const crown = GROUND - 50; // top of the cornice
@@ -179,53 +179,47 @@ paint((x, y) => {
 
   // Cone cap
   if (y < crown) {
-    const t = (crown - y) / 6; // 0 at the cornice → 1 at the tip
+    const t = (crown - y) / 5; // 0 at the cornice → 1 at the tip
     if (t > 1) return null;
-    const half = 2 * (1 - t) ** 0.8;
+    const half = 1.8 * (1 - t) ** 0.8;
     return Math.abs(dx) <= half ? 0.36 + lit(half || 1) : null;
   }
-  // Stalactite cornice: widest at the top, stepping in toward the lantern,
-  // with rows of little vertical cells.
+  // Crown: two stepped tiers of corbelling, widest at the top, each with a
+  // shadowed underside — the stalactite cornice, simplified.
   if (y < crown + 4) {
-    const t = (y - crown) / 4;
-    const half = 5.3 - t * 1.6;
+    const tier = y < crown + 2 ? 0 : 1;
+    const half = tier === 0 ? 4.8 : 4.3;
     if (Math.abs(dx) > half) return null;
-    const cell = Math.sin(dx * 2.4 + Math.floor(t * 3) * 1.3) > 0.3;
-    return 0.34 + lit(half) + (cell ? 0.16 : 0);
+    const underside = y > crown + (tier === 0 ? 1.4 : 3.4);
+    return 5 / 16 + lit(half) + (underside ? 3 / 16 : 0);
   }
-  // Lantern: a ring of tall arched windows between slim piers.
+  // Lantern: the only openings on the tower — a ring of tall arched
+  // windows, one centred on the axis.
   if (y < crown + 9.5) {
-    const half = 3.7;
+    const half = 3.9;
     if (Math.abs(dx) > half) return null;
     const winTop = crown + 5;
     const winBase = crown + 8.6;
-    // Windows every 4 cells, one centred on the axis.
     const span = 4 * CELL;
     const local = ((Math.abs(dx) + span / 2) % span) - span / 2;
-    if (inArch(local, y, 0, winBase, 0.75, winBase - winTop)) return 0.9;
-    return 0.34 + lit(half);
+    if (inArch(local, y, 0, winBase, 0.75, winBase - winTop)) return T.niche;
+    return 5 / 16 + lit(half);
   }
-  // Shaft: tapers strongly, from 3.6 under the lantern to 6.4 at the ground.
-  const t = (y - (crown + 9.5)) / (GROUND - (crown + 9.5)); // 0 top → 1 base
-  const half = 3.6 + t * 2.8;
-  if (Math.abs(dx) > half) return null;
+  // Shaft: one continuous, solid surface tapering from 3.8 under the
+  // lantern to 6.0 at the ground (about the real tower's 1.6 : 1).
   const depth = crown + 9.5;
-  // Fine brick band just under the lantern, then the turquoise tile band.
-  if (y < depth + 2.5) return 0.44 + lit(half) + (Math.sin(dx * 3) > 0.4 ? 0.1 : 0);
-  if (y < depth + 3.5) return 0.8 + lit(half) * 0.4;
-  // Bands of different brick patterns, separated by plain rings.
-  const band = Math.floor((y - depth - 3.5) / 6.5);
-  const inBand = (y - depth - 3.5) % 6.5;
-  if (inBand < 0.9) return 0.56 + lit(half); // plain dividing ring
-  const u = Math.abs(dx) * 1.6; // mirrored, so diagonals read as chevrons
-  const v = y * 1.6;
-  const pattern = [
-    Math.abs(((u + v) % 2 + 2) % 2 - 1) < 0.35, // diagonal lattice
-    Math.abs(((u - v) % 2 + 2) % 2 - 1) < 0.35 || Math.abs(((u + v) % 2 + 2) % 2 - 1) < 0.35, // diamonds
-    Math.sin(v * 2.2) > 0.5, // horizontal courses
-    (Math.floor(u) + Math.floor(v)) % 2 === 0, // chequer
-  ][band % 4];
-  return 0.18 + lit(half) + (pattern ? 0.22 : 0);
+  const t = (y - depth) / (GROUND - depth); // 0 top → 1 base
+  const half = 3.8 + t * 2.2;
+  if (Math.abs(dx) > half) return null;
+  if (y < depth + 1.2) return T.band + lit(half); // ring under the lantern
+  if (y >= depth + 2.4 && y < depth + 3.6) return T.niche + lit(half) * 0.5; // the turquoise tile band
+  // Below it, the brick is divided into sections by thin rings; sections
+  // alternate very slightly in tone, as the real brick patterns do.
+  const fromTile = y - (depth + 3.6);
+  const section = Math.floor(fromTile / 6.4);
+  const inSection = fromTile - section * 6.4;
+  if (fromTile > 0 && inSection < 0.8) return T.band + lit(half); // dividing ring
+  return (section % 2 ? 4 / 16 : 3 / 16) + lit(half);
 });
 
 // 4. Mir-i-Arab — the portal (pishtaq) between twin domes, with two-storey
