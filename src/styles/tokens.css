@@ -63,11 +63,12 @@
 
   /* Homepage ASCII background (Mir-i-Arab). Uses the text colour, so it's
      soft off-white in dark mode and near-black in light — never pure white.
-     Resting strength, and the peak as the light pass sweeps over it. */
+     Resting strength, then the moving light that passes over it. */
   --ascii-color: var(--color-text);
   --ascii-opacity: 0.08;
-  --ascii-opacity-peak: 0.16;
-  --ascii-pass-duration: 24s; /* one full sweep + rest */
+  --ascii-opacity-peak: 0.13; /* at the brightest point of the moving light */
+  --ascii-pass-duration: 13s; /* one pass, left edge → right edge, linear */
+  --ascii-light-width: 45vw; /* width of the soft light band */
 
   color-scheme: light;
 }
