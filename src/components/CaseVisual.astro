@@ -1,0 +1,95 @@
+---
+/* One case study visual. Looks for a file named `visual.file` and renders
+   whichever it finds first:
+     1. an image in src/assets/projects/<slug>/  → optimised <Media>
+     2. an .mp4 in public/media/projects/<slug>/ → <VideoLoop>
+     3. nothing yet → a placeholder showing what goes here and the file name.
+   So adding a visual = dropping a correctly named file in; no code edits. */
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import type { ImageMetadata } from 'astro';
+import type { Visual } from '../data/case-studies';
+import Media from './Media.astro';
+import VideoLoop from './VideoLoop.astro';
+
+interface Props {
+  slug: string;
+  visual: Visual;
+  priority?: boolean;
+  /** Rendered width hint for the image srcset. */
+  sizes?: string;
+}
+
+const { slug, visual, priority = false, sizes } = Astro.props;
+
+// Every project image, found at build time (eager = imported up front).
+const images = import.meta.glob<{ default: ImageMetadata }>(
+  '/src/assets/projects/*/*.{png,jpg,jpeg,webp,avif}',
+  { eager: true }
+);
+const imageKey = Object.keys(images).find((path) =>
+  new RegExp(`^/src/assets/projects/${slug}/${visual.file}\\.\\w+$`).test(path)
+);
+const image = imageKey ? images[imageKey].default : undefined;
+
+const videoUrl = `/media/projects/${slug}/${visual.file}.mp4`;
+const hasVideo = !image && existsSync(join(process.cwd(), 'public', videoUrl));
+const aspect = visual.aspect ?? '16 / 10';
+---
+
+{
+  image ? (
+    <Media src={image} alt={visual.alt} caption={visual.caption} priority={priority} sizes={sizes} />
+  ) : hasVideo ? (
+    <figure class="video">
+      <VideoLoop
+        src={videoUrl}
+        poster={`/media/projects/${slug}/${visual.file}-poster.jpg`}
+        label={visual.alt}
+        aspect={aspect}
+      />
+      {visual.caption && <figcaption class="label">{visual.caption}</figcaption>}
+    </figure>
+  ) : (
+    <figure class="placeholder" style={`aspect-ratio: ${aspect}`} aria-label={`Placeholder: ${visual.alt}`}>
+      <figcaption>
+        <span class="brief">{visual.brief}</span>
+        <span class="label file">{visual.file}.png / .jpg / .mp4</span>
+      </figcaption>
+    </figure>
+  )
+}
+
+<style>
+  .video {
+    display: grid;
+    gap: var(--space-2);
+  }
+  .video figcaption {
+    color: var(--color-text-faint);
+  }
+
+  /* Temporary box until the real visual exists. Dashed so it never
+     gets mistaken for a finished design. */
+  .placeholder {
+    display: grid;
+    place-items: center;
+    padding: var(--space-4);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    text-align: center;
+  }
+  .placeholder figcaption {
+    display: grid;
+    gap: var(--space-2);
+    max-width: 28rem;
+  }
+  .brief {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+  .file {
+    color: var(--color-text-faint);
+  }
+</style>

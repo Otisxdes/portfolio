@@ -1,43 +1,237 @@
 ---
-/* Temporary case study page so links work. Replaced in the case-study
-   phase with a content-driven template. */
+/* Case study page. Content comes from src/data/case-studies.ts; projects
+   marked hasCaseStudy without content yet show a short "coming soon". */
 import Base from '../../layouts/Base.astro';
+import CaseVisual from '../../components/CaseVisual.astro';
 import { projects } from '../../data/site';
+import { caseStudies } from '../../data/case-studies';
 
 export function getStaticPaths() {
-  return projects
-    .filter((p) => p.hasCaseStudy)
-    .map((project) => ({ params: { slug: project.slug }, props: { project } }));
+  const withCase = projects.filter((p) => p.hasCaseStudy);
+  return withCase.map((project, i) => ({
+    params: { slug: project.slug },
+    props: {
+      project,
+      study: caseStudies.find((c) => c.slug === project.slug),
+      // Loops back to the first project after the last one.
+      next: withCase.length > 1 ? withCase[(i + 1) % withCase.length] : undefined,
+    },
+  }));
 }
 
-const { project } = Astro.props;
+const { project, study, next } = Astro.props;
+
+// Image width hints: full-width media vs. one cell of a 2- or 3-column grid.
+const sizesFor = (columns = 1) =>
+  columns === 1 ? '(min-width: 64rem) 64rem, 100vw' : `(min-width: 64rem) ${Math.round(64 / columns)}rem, 50vw`;
 ---
 
-<Base title={project.title} description={`${project.title}: ${project.outcome}.`}>
-  <header class="head" data-reveal-group>
-    <p class="label" data-reveal>{project.discipline} / {project.context} · {project.period}</p>
-    <h1 data-reveal>{project.title}</h1>
-    <p class="outcome" data-reveal>{project.outcome}</p>
-  </header>
-  <p class="muted" data-reveal>Case study coming in the next phase.</p>
-  <p data-reveal><a href="/">← Back to index</a></p>
+<Base
+  title={project.title}
+  description={study ? study.headline : `${project.title}: ${project.outcome}.`}
+>
+  <article>
+    <header class="head" data-reveal-group>
+      <p class="label" data-reveal>{project.title}</p>
+      <h1 data-reveal>{study?.headline ?? project.title}</h1>
+      {!study && <p class="lead" data-reveal>{project.outcome}</p>}
+    </header>
+
+    {
+      study ? (
+        <>
+          <dl class="facts" data-reveal-group>
+            {study.facts.map((fact) => (
+              <div data-reveal>
+                <dt class="label">{fact.label}</dt>
+                <dd>{fact.value}</dd>
+              </div>
+            ))}
+          </dl>
+
+          <dl class="outcome" data-reveal-group>
+            {study.outcome.map((stat) => (
+              <div data-reveal>
+                <dt class="label">{stat.label}</dt>
+                <dd class="value">{stat.value}</dd>
+              </div>
+            ))}
+          </dl>
+
+          <div class="wide" data-reveal>
+            <CaseVisual slug={study.slug} visual={study.hero} priority />
+          </div>
+
+          <div class="prose" data-reveal-group>
+            {study.intro.map((p) => (
+              <p data-reveal>{p}</p>
+            ))}
+          </div>
+
+          {study.chapters.map((chapter) => (
+            <section class="chapter">
+              <div class="prose" data-reveal-group>
+                <h2 data-reveal>{chapter.heading}</h2>
+                {chapter.body.map((p) => (
+                  <p data-reveal>{p}</p>
+                ))}
+              </div>
+
+              {chapter.galleries?.map((gallery) => (
+                <div
+                  class="wide gallery"
+                  style={`--columns: ${gallery.columns ?? 1}`}
+                  data-reveal-group
+                >
+                  {gallery.visuals.map((visual) => (
+                    <div data-reveal>
+                      <CaseVisual slug={study.slug} visual={visual} sizes={sizesFor(gallery.columns)} />
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </section>
+          ))}
+        </>
+      ) : (
+        <p class="muted" data-reveal>
+          Case study coming soon.
+        </p>
+      )
+    }
+
+    <nav class="end" aria-label="More work" data-reveal>
+      {
+        next && (
+          <a class="next" href={`/work/${next.slug}`}>
+            <span class="label">Next project</span>
+            <span class="next-title">{next.title}</span>
+          </a>
+        )
+      }
+      <a class="back label" href="/">← Back to index</a>
+    </nav>
+  </article>
 </Base>
 
 <style>
   .head {
     display: grid;
-    gap: var(--space-2);
-    margin-bottom: var(--space-6);
+    gap: var(--space-3);
   }
   h1 {
     font-size: var(--text-xl);
     font-weight: var(--weight-medium);
     line-height: var(--leading-tight);
+    text-wrap: balance;
   }
-  .outcome {
+  .lead {
     font-size: var(--text-lg);
   }
-  p + p {
-    margin-top: var(--space-3);
+
+  /* Role / year / type / tools. */
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-4);
+    margin-top: var(--space-6);
+  }
+  dd {
+    margin: 0;
+  }
+  .facts dd {
+    font-size: var(--text-sm);
+  }
+
+  /* The numbers strip: value first, label under. */
+  .outcome {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-4);
+    margin-top: var(--space-6);
+    padding-block: var(--space-4);
+    border-block: 1px solid var(--color-border);
+  }
+  .outcome div {
+    display: flex;
+    flex-direction: column-reverse; /* label is first in markup, shown under the number */
+    justify-content: flex-end;
+  }
+  .outcome .value {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-medium);
+    line-height: var(--leading-tight);
+  }
+
+  /* Media breaks out of the reading column up to --measure-wide.
+     Negative margins centre it on the column; the gutter keeps it off
+     the screen edge on small viewports. */
+  .wide {
+    --wide: min(var(--measure-wide), 100vw - var(--gutter) * 2);
+    width: var(--wide);
+    margin-inline: calc((100% - var(--wide)) / 2);
+    margin-top: var(--space-7);
+  }
+
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(var(--columns), 1fr);
+    gap: var(--space-4);
+    align-items: start;
+  }
+  .gallery + .gallery {
+    margin-top: var(--space-4);
+  }
+  /* Small screens: 3 across becomes 2, 2 across becomes 1. */
+  @media (max-width: 40rem) {
+    .gallery {
+      grid-template-columns: repeat(max(1, calc(var(--columns) - 1)), 1fr);
+    }
+  }
+
+  .prose {
+    display: grid;
+    gap: var(--space-3);
+    margin-top: var(--space-7);
+  }
+  .chapter {
+    margin-top: var(--space-9);
+  }
+  .chapter .prose {
+    margin-top: 0;
+  }
+  h2 {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-medium);
+    line-height: var(--leading-tight);
+    margin-bottom: var(--space-1);
+  }
+
+  .end {
+    display: grid;
+    gap: var(--space-5);
+    margin-top: var(--space-9);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--color-border);
+  }
+  .next {
+    display: grid;
+    gap: var(--space-1);
+    text-decoration: none;
+  }
+  .next-title {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-medium);
+  }
+  .next-title::after {
+    content: ' →';
+    color: var(--color-text-faint);
+    transition: color var(--duration-base) var(--ease-out);
+  }
+  .next:hover .next-title::after {
+    color: var(--color-text);
+  }
+  .back {
+    justify-self: start;
   }
 </style>
