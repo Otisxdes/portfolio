@@ -20,6 +20,9 @@ interface Props {
   sizes?: string;
   /** No background or rounded corners — for transparent cut-outs (mockups, diagrams). */
   plain?: boolean;
+  /** Serve the original file untouched (no resizing or recompression).
+      For diagrams and line art, where recompression blurs thin lines. */
+  crisp?: boolean;
   class?: string;
 }
 
@@ -30,23 +33,39 @@ const {
   priority = false,
   sizes = '(min-width: 64rem) 64rem, 100vw',
   plain = false,
+  crisp = false,
   class: className,
 } = Astro.props;
 
-const widths = [480, 800, 1200, 1600, 2400].filter((w) => w <= src.width);
+// Smaller sizes for small screens, plus the original width so large
+// displays never get a stretched-up image.
+const widths = [...[480, 800, 1200, 1600, 2400].filter((w) => w < src.width), src.width];
 ---
 
 <figure class:list={['media', { plain }, className]}>
-  <Picture
-    src={src}
-    alt={alt}
-    formats={['avif', 'webp']}
-    widths={widths.length ? widths : [src.width]}
-    sizes={sizes}
-    loading={priority ? 'eager' : 'lazy'}
-    fetchpriority={priority ? 'high' : 'auto'}
-    decoding="async"
-  />
+  {
+    crisp ? (
+      <img
+        src={src.src}
+        width={src.width}
+        height={src.height}
+        alt={alt}
+        loading={priority ? 'eager' : 'lazy'}
+        decoding="async"
+      />
+    ) : (
+      <Picture
+        src={src}
+        alt={alt}
+        formats={['avif', 'webp']}
+        widths={widths}
+        sizes={sizes}
+        loading={priority ? 'eager' : 'lazy'}
+        fetchpriority={priority ? 'high' : 'auto'}
+        decoding="async"
+      />
+    )
+  }
   {caption && <figcaption class="label">{caption}</figcaption>}
 </figure>
 

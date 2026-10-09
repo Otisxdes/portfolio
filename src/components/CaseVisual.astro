@@ -48,16 +48,16 @@ const aspect = visual.aspect ?? '16 / 10';
   image && visual.fileLight ? (
     <div class:list={['themed', { 'needs-stage': !lightImage }]}>
       <div class="on-dark">
-        <Media src={image} alt={visual.alt} caption={visual.caption} priority={priority} sizes={sizes} plain />
+        <Media src={image} alt={visual.alt} caption={visual.caption} priority={priority} sizes={sizes} plain crisp={visual.crisp} />
       </div>
       {lightImage && (
         <div class="on-light">
-          <Media src={lightImage} alt={visual.alt} caption={visual.caption} priority={priority} sizes={sizes} plain />
+          <Media src={lightImage} alt={visual.alt} caption={visual.caption} priority={priority} sizes={sizes} plain crisp={visual.crisp} />
         </div>
       )}
     </div>
   ) : image ? (
-    <Media src={image} alt={visual.alt} caption={visual.caption} priority={priority} sizes={sizes} plain={plain} />
+    <Media src={image} alt={visual.alt} caption={visual.caption} priority={priority} sizes={sizes} plain={plain} crisp={visual.crisp} />
   ) : hasVideo ? (
     <figure class="video">
       <VideoLoop

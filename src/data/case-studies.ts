@@ -23,6 +23,8 @@ export interface Visual {
       is treated as the dark-mode version (transparent, light lines). Until
       the light file exists, light mode shows `file` on a dark panel. */
   fileLight?: string;
+  /** Serve the file exactly as exported (no recompression). For diagrams. */
+  crisp?: boolean;
 }
 
 export interface Gallery {
@@ -104,6 +106,7 @@ export const caseStudies: CaseStudy[] = [
                 brief: 'User flow diagram',
                 aspect: '2000 / 548',
                 fileLight: 'journey-diagram-light',
+                crisp: true,
               },
             ],
             pan: true,
