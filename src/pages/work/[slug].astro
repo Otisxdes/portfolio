@@ -3,6 +3,7 @@
    marked hasCaseStudy without content yet show a short "coming soon". */
 import Base from '../../layouts/Base.astro';
 import CaseVisual from '../../components/CaseVisual.astro';
+import Carousel from '../../components/Carousel.astro';
 import { projects } from '../../data/site';
 import { caseStudies } from '../../data/case-studies';
 
@@ -77,19 +78,30 @@ const sizesFor = (columns = 1) =>
                 ))}
               </div>
 
-              {chapter.galleries?.map((gallery) => (
-                <div
-                  class="wide gallery"
-                  style={`--columns: ${gallery.columns ?? 1}`}
-                  data-reveal-group
-                >
-                  {gallery.visuals.map((visual) => (
-                    <div data-reveal>
-                      <CaseVisual slug={study.slug} visual={visual} sizes={sizesFor(gallery.columns)} />
-                    </div>
-                  ))}
-                </div>
-              ))}
+              {chapter.galleries?.map((gallery) =>
+                gallery.layout === 'carousel' ? (
+                  <div class="wide gallery" data-reveal>
+                    <Carousel slug={study.slug} visuals={gallery.visuals} label={chapter.heading} />
+                  </div>
+                ) : (
+                  <div
+                    class:list={['wide gallery', { stage: gallery.stage, pan: gallery.pan }]}
+                    style={`--columns: ${gallery.columns ?? 1}`}
+                    data-reveal-group
+                  >
+                    {gallery.visuals.map((visual) => (
+                      <div data-reveal>
+                        <CaseVisual
+                          slug={study.slug}
+                          visual={visual}
+                          sizes={sizesFor(gallery.columns)}
+                          plain={gallery.stage}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
             </section>
           ))}
         </>
@@ -182,10 +194,27 @@ const sizesFor = (columns = 1) =>
   .gallery + .gallery {
     margin-top: var(--space-4);
   }
+  /* Dark panel for visuals exported to sit on dark. */
+  .stage {
+    padding: var(--space-7) var(--space-6);
+    border-radius: var(--radius-md);
+    background: var(--color-stage);
+  }
   /* Small screens: 3 across becomes 2, 2 across becomes 1. */
   @media (max-width: 40rem) {
     .gallery {
       grid-template-columns: repeat(max(1, calc(var(--columns) - 1)), 1fr);
+    }
+    .stage {
+      padding: var(--space-5) var(--space-4);
+    }
+    /* Pan: the visual keeps a readable size and scrolls sideways. */
+    .pan > div {
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .pan :global(.media) {
+      width: 48rem;
     }
   }
 

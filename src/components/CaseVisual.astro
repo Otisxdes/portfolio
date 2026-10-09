@@ -18,9 +18,11 @@ interface Props {
   priority?: boolean;
   /** Rendered width hint for the image srcset. */
   sizes?: string;
+  /** Transparent image with no background, e.g. on a stage. */
+  plain?: boolean;
 }
 
-const { slug, visual, priority = false, sizes } = Astro.props;
+const { slug, visual, priority = false, sizes, plain = false } = Astro.props;
 
 // Every project image, found at build time (eager = imported up front).
 const images = import.meta.glob<{ default: ImageMetadata }>(
@@ -39,7 +41,7 @@ const aspect = visual.aspect ?? '16 / 10';
 
 {
   image ? (
-    <Media src={image} alt={visual.alt} caption={visual.caption} priority={priority} sizes={sizes} />
+    <Media src={image} alt={visual.alt} caption={visual.caption} priority={priority} sizes={sizes} plain={plain} />
   ) : hasVideo ? (
     <figure class="video">
       <VideoLoop

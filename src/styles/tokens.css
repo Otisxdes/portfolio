@@ -57,6 +57,10 @@
   --color-link-underline: #c9c9c4;
   --color-live: #22a35a; /* "in progress" indicator */
   --color-focus: #2f6fed;
+  /* Stage: dark panel behind device mockups and diagrams. Same in both
+     themes, because those exports are made to sit on dark. */
+  --color-stage: #1a1a19;
+  --color-stage-text: #9a9a95;
   /* Reserved: Central Asian layer. Neutral until we design it. */
   --color-accent: var(--color-text);
   --ornament: none;

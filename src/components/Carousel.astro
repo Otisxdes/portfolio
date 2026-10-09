@@ -1,0 +1,205 @@
+---
+/* Looping slider on a dark stage: one visual at a time with the next one
+   peeking in. It rests on each slide, then eases to the next.
+
+   - The slides are rendered twice (the copy is hidden from screen readers),
+     so after the last slide the loop continues into the copy, then jumps back
+     to the start without a visible seam.
+   - Pauses while hovered, while off screen, or with the Pause button.
+   - Reduced motion / no JS: no autoplay; the row scrolls sideways by hand. */
+import type { Visual } from '../data/case-studies';
+import CaseVisual from './CaseVisual.astro';
+
+interface Props {
+  slug: string;
+  visuals: Visual[];
+  label: string;
+}
+
+const { slug, visuals, label } = Astro.props;
+const sizes = '(min-width: 64rem) 46rem, 85vw';
+---
+
+<div class="carousel" data-carousel role="region" aria-roledescription="carousel" aria-label={label}>
+  <div class="track" data-track>
+    {
+      visuals.map((visual) => (
+        <div class="slide" data-slide>
+          <CaseVisual slug={slug} visual={visual} sizes={sizes} plain />
+        </div>
+      ))
+    }
+    {
+      visuals.map((visual) => (
+        <div class="slide clone" data-slide aria-hidden="true">
+          <CaseVisual slug={slug} visual={visual} sizes={sizes} plain />
+        </div>
+      ))
+    }
+  </div>
+  <button class="toggle label" type="button" data-toggle aria-pressed="false">Pause</button>
+</div>
+
+<script>
+  import { inView } from 'motion';
+
+  const HOLD_MS = 2600; // how long each slide rests
+  const SLIDE_MS = 1100; // how long the move takes
+  const SLIDE_EASE = 'cubic-bezier(0.65, 0, 0.35, 1)'; // soft ease-in-out
+
+  // Cleanups for the current page, run before the router swaps pages.
+  let cleanups: (() => void)[] = [];
+
+  const setup = () => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    document.querySelectorAll<HTMLElement>('[data-carousel]').forEach((root) => {
+      const track = root.querySelector<HTMLElement>('[data-track]')!;
+      const slides = [...track.querySelectorAll<HTMLElement>('[data-slide]')];
+      const toggle = root.querySelector<HTMLButtonElement>('[data-toggle]')!;
+      const count = slides.length / 2;
+
+      root.classList.add('is-auto');
+
+      let index = 0;
+      let timer: number | undefined;
+      let visible = false;
+      let hovered = false;
+      let paused = false;
+
+      // Distance from the first slide, so the track's left padding is kept.
+      const offset = (i: number) => slides[i].offsetLeft - slides[0].offsetLeft;
+      // Move to slide i, either easing (CSS transition) or instantly.
+      const place = (i: number, ease = false) => {
+        track.style.transition = ease ? `transform ${SLIDE_MS}ms ${SLIDE_EASE}` : 'none';
+        track.style.transform = `translateX(${-offset(i)}px)`;
+      };
+
+      const schedule = () => {
+        clearTimeout(timer);
+        if (visible && !hovered && !paused) timer = window.setTimeout(advance, HOLD_MS);
+      };
+
+      const advance = () => {
+        // Resting on the copy of slide 1: jump to the real one first (looks
+        // identical), and flush that position so the next move eases from it.
+        if (index === count) {
+          index = 0;
+          place(0);
+          void track.offsetWidth;
+        }
+        index += 1;
+        place(index, true);
+        timer = window.setTimeout(schedule, SLIDE_MS);
+      };
+
+      const stopInView = inView(
+        root,
+        () => {
+          visible = true;
+          schedule();
+          return () => {
+            visible = false;
+            clearTimeout(timer);
+          };
+        },
+        { amount: 0.3 }
+      );
+
+      root.addEventListener('pointerenter', () => {
+        hovered = true;
+        clearTimeout(timer);
+      });
+      root.addEventListener('pointerleave', () => {
+        hovered = false;
+        schedule();
+      });
+      toggle.addEventListener('click', () => {
+        paused = !paused;
+        toggle.textContent = paused ? 'Play' : 'Pause';
+        toggle.setAttribute('aria-pressed', String(paused));
+        schedule();
+      });
+
+      const onResize = () => place(index);
+      window.addEventListener('resize', onResize);
+
+      cleanups.push(() => {
+        clearTimeout(timer);
+        stopInView();
+        window.removeEventListener('resize', onResize);
+      });
+    });
+  };
+
+  document.addEventListener('astro:page-load', setup);
+  document.addEventListener('astro:before-swap', () => {
+    cleanups.forEach((fn) => fn());
+    cleanups = [];
+  });
+</script>
+
+<style>
+  .carousel {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background: var(--color-stage);
+  }
+
+  .track {
+    display: flex;
+    gap: var(--space-5);
+    padding: var(--space-7) var(--space-6);
+    /* Manual mode (reduced motion / no JS): swipe or scroll sideways. */
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--space-6);
+    scrollbar-width: none;
+  }
+
+  .slide {
+    flex: 0 0 72%;
+    scroll-snap-align: start;
+  }
+
+  .clone,
+  .toggle {
+    display: none;
+  }
+
+  /* Auto mode: JS moves the track, so no native scrolling. */
+  .is-auto .track {
+    overflow: visible;
+    will-change: transform;
+  }
+  .is-auto .clone {
+    display: block;
+  }
+  .is-auto .toggle {
+    display: block;
+  }
+
+  .toggle {
+    position: absolute;
+    right: var(--space-4);
+    bottom: var(--space-3);
+    padding: var(--space-1) var(--space-2);
+    color: var(--color-stage-text);
+  }
+  .toggle:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  @media (max-width: 40rem) {
+    .track {
+      gap: var(--space-3);
+      padding: var(--space-6) var(--space-4);
+      scroll-padding-inline: var(--space-4);
+    }
+    .slide {
+      flex-basis: 85%;
+    }
+  }
+</style>

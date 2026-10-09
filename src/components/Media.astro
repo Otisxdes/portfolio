@@ -18,6 +18,8 @@ interface Props {
   priority?: boolean;
   /** How wide the image renders, so the browser picks the right file. */
   sizes?: string;
+  /** No background or rounded corners — for transparent cut-outs (mockups, diagrams). */
+  plain?: boolean;
   class?: string;
 }
 
@@ -27,13 +29,14 @@ const {
   caption,
   priority = false,
   sizes = '(min-width: 64rem) 64rem, 100vw',
+  plain = false,
   class: className,
 } = Astro.props;
 
 const widths = [480, 800, 1200, 1600, 2400].filter((w) => w <= src.width);
 ---
 
-<figure class:list={['media', className]}>
+<figure class:list={['media', { plain }, className]}>
   <Picture
     src={src}
     alt={alt}
@@ -57,6 +60,10 @@ const widths = [480, 800, 1200, 1600, 2400].filter((w) => w <= src.width);
     height: auto;
     border-radius: var(--radius-md);
     background: var(--color-surface);
+  }
+  .plain :global(img) {
+    border-radius: 0;
+    background: none;
   }
   figcaption {
     color: var(--color-text-faint);

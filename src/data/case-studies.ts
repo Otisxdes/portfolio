@@ -25,6 +25,14 @@ export interface Gallery {
   visuals: Visual[];
   /** Side-by-side count on desktop. Collapses on small screens. */
   columns?: 1 | 2 | 3;
+  /** 'carousel' = one visual at a time, sliding on a loop (always on a stage). */
+  layout?: 'grid' | 'carousel';
+  /** Dark panel behind the visuals, same in both themes. For transparent
+      exports made to sit on dark, like device mockups and the flow diagram. */
+  stage?: boolean;
+  /** Small screens: keep the visual large and let it scroll sideways.
+      For dense diagrams whose labels would be too small to read. */
+  pan?: boolean;
 }
 
 export interface Chapter {
@@ -88,51 +96,46 @@ export const caseStudies: CaseStudy[] = [
             visuals: [
               {
                 file: 'journey-diagram',
-                alt: 'Shopping journey from homepage to product page, basket, checkout, thank-you page and account, with the ask intensity dropping to zero at basket and checkout',
-                brief:
-                  'NEW diagram: Home → PDP → Basket → Checkout → Thank you / Account, with an “ask intensity” line that drops to zero at basket and checkout. The key visual of the case study.',
-                aspect: '16 / 9',
+                alt: 'User flow: on app or website launch a homepage pop-up appears. Know more leads to the landing page; close continues to the homepage, product page, basket and thank-you page, or My account. Every path leads to sign-in, then bank onboarding.',
+                brief: 'User flow diagram',
+                aspect: '2000 / 548',
               },
             ],
+            stage: true,
+            pan: true,
           },
           {
-            columns: 3,
+            layout: 'carousel',
             visuals: [
               {
                 file: 'touchpoint-home',
-                alt: 'Homepage pop-up promoting the card',
+                alt: 'Homepage pop-up promoting the card, on tablet',
                 brief: 'Touchpoint: homepage pop-up',
-                aspect: '4 / 3',
+                aspect: '3192 / 2304',
               },
               {
                 file: 'touchpoint-pdp',
-                alt: 'Product page banner with a link to the card',
+                alt: 'Product page banner with a link to the card, on tablet',
                 brief: 'Touchpoint: product page banner',
-                aspect: '4 / 3',
+                aspect: '3192 / 2304',
               },
               {
                 file: 'touchpoint-basket',
-                alt: 'Non-clickable card message in the basket',
+                alt: 'Non-clickable card message in the basket, on tablet',
                 brief: 'Touchpoint: basket (visible, not clickable)',
-                aspect: '4 / 3',
-              },
-              {
-                file: 'touchpoint-checkout',
-                alt: 'Non-clickable card message in checkout',
-                brief: 'Touchpoint: checkout (visible, not clickable)',
-                aspect: '4 / 3',
-              },
-              {
-                file: 'touchpoint-thank-you',
-                alt: 'Card promotion on the order thank-you page',
-                brief: 'Touchpoint: thank-you page',
-                aspect: '4 / 3',
+                aspect: '3192 / 2304',
               },
               {
                 file: 'touchpoint-account',
-                alt: 'Card promotion in My account',
+                alt: 'Card promotion in My account, on tablet',
                 brief: 'Touchpoint: My account',
-                aspect: '4 / 3',
+                aspect: '3192 / 2304',
+              },
+              {
+                file: 'touchpoint-thank-you',
+                alt: 'Card promotion on the order thank-you page, on tablet',
+                brief: 'Touchpoint: thank-you page',
+                aspect: '3192 / 2304',
               },
             ],
           },
