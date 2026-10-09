@@ -132,9 +132,10 @@ const sizesFor = (columns = 1) =>
     gap: var(--space-3);
   }
   h1 {
-    font-size: var(--text-xl);
-    font-weight: var(--weight-medium);
-    line-height: var(--leading-tight);
+    font-size: var(--text-display);
+    font-weight: var(--weight-semibold);
+    line-height: var(--leading-display);
+    letter-spacing: var(--tracking-tight);
     text-wrap: balance;
   }
   .lead {
@@ -170,9 +171,11 @@ const sizesFor = (columns = 1) =>
     justify-content: flex-end;
   }
   .outcome .value {
-    font-size: var(--text-lg);
-    font-weight: var(--weight-medium);
-    line-height: var(--leading-tight);
+    font-size: var(--text-stat);
+    font-weight: var(--weight-semibold);
+    line-height: var(--leading-display);
+    letter-spacing: var(--tracking-tight);
+    white-space: nowrap;
   }
 
   /* Media breaks out of the reading column up to --measure-wide.
@@ -233,10 +236,11 @@ const sizesFor = (columns = 1) =>
     margin-top: 0;
   }
   h2 {
-    font-size: var(--text-lg);
-    font-weight: var(--weight-medium);
+    font-size: var(--text-xl);
+    font-weight: var(--weight-semibold);
     line-height: var(--leading-tight);
-    margin-bottom: var(--space-1);
+    letter-spacing: var(--tracking-tight);
+    margin-bottom: var(--space-2);
   }
 
   .end {
