@@ -197,16 +197,6 @@ export const caseStudies: CaseStudy[] = [
               },
             ],
           },
-          {
-            visuals: [
-              {
-                file: 'card-directions',
-                alt: 'Card design directions side by side',
-                brief: 'Card design directions side by side',
-                aspect: '16 / 9',
-              },
-            ],
-          },
         ],
       },
       {
