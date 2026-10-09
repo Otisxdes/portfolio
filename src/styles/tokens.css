@@ -61,6 +61,7 @@
      themes, because those exports are made to sit on dark. */
   --color-stage: #1a1a19;
   --color-stage-text: #9a9a95;
+  --color-stage-strong: #ededea;
   /* Reserved: Central Asian layer. Neutral until we design it. */
   --color-accent: var(--color-text);
   --ornament: none;

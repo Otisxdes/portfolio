@@ -80,7 +80,7 @@ const sizesFor = (columns = 1) =>
 
               {chapter.galleries?.map((gallery) =>
                 gallery.layout === 'carousel' ? (
-                  <div class="wide gallery" data-reveal>
+                  <div class="wide gallery carousel-gallery" data-reveal>
                     <Carousel slug={study.slug} visuals={gallery.visuals} label={chapter.heading} />
                   </div>
                 ) : (
@@ -193,6 +193,9 @@ const sizesFor = (columns = 1) =>
   }
   .gallery + .gallery {
     margin-top: var(--space-4);
+  }
+  .gallery + .carousel-gallery {
+    margin-top: var(--space-6);
   }
   /* Dark panel for visuals exported to sit on dark. */
   .stage {

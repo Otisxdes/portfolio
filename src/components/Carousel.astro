@@ -5,8 +5,10 @@
    - The slides are rendered twice (the copy is hidden from screen readers),
      so after the last slide the loop continues into the copy, then jumps back
      to the start without a visible seam.
+   - Dots below jump to a slide; the active one is full strength.
    - Pauses while hovered, while off screen, or with the Pause button.
-   - Reduced motion / no JS: no autoplay; the row scrolls sideways by hand. */
+   - Reduced motion: no autoplay; the row scrolls sideways (dots still work).
+   - No JS: the row scrolls sideways; dots stay hidden. */
 import type { Visual } from '../data/case-studies';
 import CaseVisual from './CaseVisual.astro';
 
@@ -37,7 +39,22 @@ const sizes = '(min-width: 64rem) 46rem, 85vw';
       ))
     }
   </div>
-  <button class="toggle label" type="button" data-toggle aria-pressed="false">Pause</button>
+  <div class="controls">
+    <div class="dots" role="group" aria-label="Choose a screen">
+      {
+        visuals.map((_, i) => (
+          <button
+            class="dot"
+            type="button"
+            data-dot
+            aria-label={`Screen ${i + 1} of ${visuals.length}`}
+            aria-current={i === 0 ? 'true' : undefined}
+          />
+        ))
+      }
+    </div>
+    <button class="toggle label" type="button" data-toggle aria-pressed="false">Pause</button>
+  </div>
 </div>
 
 <script>
@@ -51,13 +68,38 @@ const sizes = '(min-width: 64rem) 46rem, 85vw';
   let cleanups: (() => void)[] = [];
 
   const setup = () => {
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     document.querySelectorAll<HTMLElement>('[data-carousel]').forEach((root) => {
       const track = root.querySelector<HTMLElement>('[data-track]')!;
       const slides = [...track.querySelectorAll<HTMLElement>('[data-slide]')];
+      const dots = [...root.querySelectorAll<HTMLButtonElement>('[data-dot]')];
       const toggle = root.querySelector<HTMLButtonElement>('[data-toggle]')!;
       const count = slides.length / 2;
+
+      // Distance from the first slide, so the track's left padding is kept.
+      const offset = (i: number) => slides[i].offsetLeft - slides[0].offsetLeft;
+      // Highlight the dot for slide i (the copies map back onto the originals).
+      const setActive = (i: number) =>
+        dots.forEach((dot, d) =>
+          d === i % count ? dot.setAttribute('aria-current', 'true') : dot.removeAttribute('aria-current')
+        );
+
+      root.classList.add('is-ready'); // shows the dots
+
+      // Reduced motion: no autoplay. Dots scroll the row; scrolling moves the dot.
+      if (reduceMotion) {
+        dots.forEach((dot, i) => dot.addEventListener('click', () => track.scrollTo({ left: offset(i) })));
+        track.addEventListener('scroll', () => {
+          const nearest = slides
+            .slice(0, count)
+            .reduce((best, _, i) =>
+              Math.abs(offset(i) - track.scrollLeft) < Math.abs(offset(best) - track.scrollLeft) ? i : best
+            , 0);
+          setActive(nearest);
+        });
+        return;
+      }
 
       root.classList.add('is-auto');
 
@@ -67,12 +109,11 @@ const sizes = '(min-width: 64rem) 46rem, 85vw';
       let hovered = false;
       let paused = false;
 
-      // Distance from the first slide, so the track's left padding is kept.
-      const offset = (i: number) => slides[i].offsetLeft - slides[0].offsetLeft;
       // Move to slide i, either easing (CSS transition) or instantly.
       const place = (i: number, ease = false) => {
         track.style.transition = ease ? `transform ${SLIDE_MS}ms ${SLIDE_EASE}` : 'none';
         track.style.transform = `translateX(${-offset(i)}px)`;
+        setActive(i);
       };
 
       const schedule = () => {
@@ -80,18 +121,23 @@ const sizes = '(min-width: 64rem) 46rem, 85vw';
         if (visible && !hovered && !paused) timer = window.setTimeout(advance, HOLD_MS);
       };
 
-      const advance = () => {
+      // Ease to slide `to`, then rest before moving on.
+      const goTo = (to: number) => {
+        clearTimeout(timer);
         // Resting on the copy of slide 1: jump to the real one first (looks
-        // identical), and flush that position so the next move eases from it.
+        // identical), and flush that position so the move eases from it.
         if (index === count) {
           index = 0;
           place(0);
           void track.offsetWidth;
         }
-        index += 1;
+        index = to;
         place(index, true);
         timer = window.setTimeout(schedule, SLIDE_MS);
       };
+      const advance = () => goTo(index === count ? 1 : index + 1);
+
+      dots.forEach((dot, i) => dot.addEventListener('click', () => goTo(i)));
 
       const stopInView = inView(
         root,
@@ -150,7 +196,7 @@ const sizes = '(min-width: 64rem) 46rem, 85vw';
   .track {
     display: flex;
     gap: var(--space-5);
-    padding: var(--space-7) var(--space-6);
+    padding: var(--space-7) var(--space-6) var(--space-5);
     /* Manual mode (reduced motion / no JS): swipe or scroll sideways. */
     overflow-x: auto;
     scroll-snap-type: x mandatory;
@@ -164,7 +210,8 @@ const sizes = '(min-width: 64rem) 46rem, 85vw';
   }
 
   .clone,
-  .toggle {
+  .toggle,
+  .controls {
     display: none;
   }
 
@@ -180,10 +227,42 @@ const sizes = '(min-width: 64rem) 46rem, 85vw';
     display: block;
   }
 
+  /* Dots centred under the slides; Pause sits at the right of the same row. */
+  .is-ready .controls {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    padding-bottom: var(--space-4);
+  }
+  .dots {
+    display: flex;
+  }
+  /* 24px hit area around a 6px dot, so it's easy to tap. */
+  .dot {
+    display: grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+  .dot::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-stage-strong);
+    opacity: 0.5;
+    transition: opacity var(--duration-base) var(--ease-out);
+  }
+  .dot[aria-current='true']::before,
+  .dot:hover::before {
+    opacity: 1;
+  }
+
   .toggle {
     position: absolute;
     right: var(--space-4);
-    bottom: var(--space-3);
+    top: 50%;
+    translate: 0 calc(-50% - var(--space-4) / 2);
     padding: var(--space-1) var(--space-2);
     color: var(--color-stage-text);
   }
@@ -195,7 +274,7 @@ const sizes = '(min-width: 64rem) 46rem, 85vw';
   @media (max-width: 40rem) {
     .track {
       gap: var(--space-3);
-      padding: var(--space-6) var(--space-4);
+      padding: var(--space-6) var(--space-4) var(--space-4);
       scroll-padding-inline: var(--space-4);
     }
     .slide {
