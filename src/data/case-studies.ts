@@ -25,6 +25,9 @@ export interface Visual {
   fileLight?: string;
   /** Serve the file exactly as exported (no recompression). For diagrams. */
   crisp?: boolean;
+  /** No background or rounded corners added — for exports with their own
+      (transparent) rounded frame. */
+  plain?: boolean;
 }
 
 export interface Gallery {
@@ -160,15 +163,17 @@ export const caseStudies: CaseStudy[] = [
             visuals: [
               {
                 file: 'landing-hero',
-                alt: 'Landing page hero leading with 10% value back, desktop',
+                alt: 'Landing page hero: “More reasons to say Shukran” with an Apply now button above a 3D render of the card',
                 brief: 'Landing page hero, desktop (existing)',
-                aspect: '16 / 10',
+                aspect: '2000 / 1806',
+                plain: true,
               },
               {
                 file: 'landing-benefits',
-                alt: 'Landing page benefits section, desktop',
+                alt: 'Key benefits grid, with 10% back as the largest tile alongside the welcome bonus, Platinum tier upgrade, instant digital card and free movie tickets',
                 brief: 'Landing page benefits section, desktop (existing)',
-                aspect: '16 / 10',
+                aspect: '1994 / 2000',
+                plain: true,
               },
             ],
           },
@@ -182,29 +187,23 @@ export const caseStudies: CaseStudy[] = [
         ],
         galleries: [
           {
-            columns: 2,
             visuals: [
               {
                 file: 'landing-how-it-works',
-                alt: 'How it works steps and the partner brand rail',
+                alt: 'How it works: four steps from applying to earning Shukrans, followed by a rail of partner brand logos',
                 brief: 'How it works + brand rail (existing)',
-                aspect: '4 / 3',
-              },
-              {
-                file: 'landing-faq',
-                alt: 'Closing banner and FAQ',
-                brief: 'Closing banner & FAQ (existing)',
-                aspect: '4 / 3',
+                aspect: '2000 / 1806',
+                plain: true,
               },
             ],
           },
           {
             visuals: [
               {
-                file: 'landing-mobile',
-                alt: 'The landing page on mobile, shown as a row of screens',
-                brief: 'Mobile screens as one curated row',
-                aspect: '21 / 9',
+                file: 'card-directions',
+                alt: 'Card design directions side by side',
+                brief: 'Card design directions side by side',
+                aspect: '16 / 9',
               },
             ],
           },
@@ -223,41 +222,10 @@ export const caseStudies: CaseStudy[] = [
           {
             visuals: [
               {
-                file: 'card-directions',
-                alt: 'Card design directions side by side',
-                brief: 'Card design directions side by side. Optional: delete this entry if not shareable.',
-                aspect: '16 / 9',
-              },
-            ],
-          },
-        ],
-      },
-      {
-        heading: 'Three brands, one system',
-        body: [
-          'The same logic went live on Max, Centrepoint and Babyshop. I worked with each brand’s e-commerce team to fit it into their site.',
-        ],
-        galleries: [
-          {
-            columns: 3,
-            visuals: [
-              {
-                file: 'brand-max',
-                alt: 'The card touchpoint on the Max site',
-                brief: 'Same touchpoint on Max',
-                aspect: '3 / 4',
-              },
-              {
-                file: 'brand-centrepoint',
-                alt: 'The card touchpoint on the Centrepoint site',
-                brief: 'Same touchpoint on Centrepoint',
-                aspect: '3 / 4',
-              },
-              {
-                file: 'brand-babyshop',
-                alt: 'The card touchpoint on the Babyshop site',
-                brief: 'Same touchpoint on Babyshop',
-                aspect: '3 / 4',
+                file: 'landing-mobile',
+                alt: 'The landing page on mobile: hero, key benefits, 10% back, digital card, movie tickets and brand rail',
+                brief: 'Mobile screens as one curated row',
+                aspect: '2000 / 1391',
               },
             ],
           },

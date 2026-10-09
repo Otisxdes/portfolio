@@ -57,7 +57,7 @@ const aspect = visual.aspect ?? '16 / 10';
       )}
     </div>
   ) : image ? (
-    <Media src={image} alt={visual.alt} caption={visual.caption} priority={priority} sizes={sizes} plain={plain} crisp={visual.crisp} />
+    <Media src={image} alt={visual.alt} caption={visual.caption} priority={priority} sizes={sizes} plain={plain || visual.plain} crisp={visual.crisp} />
   ) : hasVideo ? (
     <figure class="video">
       <VideoLoop
