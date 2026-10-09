@@ -29,10 +29,15 @@ const images = import.meta.glob<{ default: ImageMetadata }>(
   '/src/assets/projects/*/*.{png,jpg,jpeg,webp,avif}',
   { eager: true }
 );
-const imageKey = Object.keys(images).find((path) =>
-  new RegExp(`^/src/assets/projects/${slug}/${visual.file}\\.\\w+$`).test(path)
-);
-const image = imageKey ? images[imageKey].default : undefined;
+const findImage = (file: string) => {
+  const key = Object.keys(images).find((path) =>
+    new RegExp(`^/src/assets/projects/${slug}/${file}\\.\\w+$`).test(path)
+  );
+  return key ? images[key].default : undefined;
+};
+const image = findImage(visual.file);
+// Optional light-mode version (see `fileLight` in case-studies.ts).
+const lightImage = visual.fileLight ? findImage(visual.fileLight) : undefined;
 
 const videoUrl = `/media/projects/${slug}/${visual.file}.mp4`;
 const hasVideo = !image && existsSync(join(process.cwd(), 'public', videoUrl));
@@ -40,7 +45,18 @@ const aspect = visual.aspect ?? '16 / 10';
 ---
 
 {
-  image ? (
+  image && visual.fileLight ? (
+    <div class:list={['themed', { 'needs-stage': !lightImage }]}>
+      <div class="on-dark">
+        <Media src={image} alt={visual.alt} caption={visual.caption} priority={priority} sizes={sizes} plain />
+      </div>
+      {lightImage && (
+        <div class="on-light">
+          <Media src={lightImage} alt={visual.alt} caption={visual.caption} priority={priority} sizes={sizes} plain />
+        </div>
+      )}
+    </div>
+  ) : image ? (
     <Media src={image} alt={visual.alt} caption={visual.caption} priority={priority} sizes={sizes} plain={plain} />
   ) : hasVideo ? (
     <figure class="video">
@@ -69,6 +85,42 @@ const aspect = visual.aspect ?? '16 / 10';
   }
   .video figcaption {
     color: var(--color-text-faint);
+  }
+
+  /* Theme-specific versions. Light is the default theme; dark applies when
+     chosen, or when the system is dark and nothing was chosen. */
+  .themed:not(.needs-stage) .on-dark {
+    display: none;
+  }
+  :global(:root[data-theme='dark']) .themed .on-dark {
+    display: block;
+  }
+  :global(:root[data-theme='dark']) .themed .on-light {
+    display: none;
+  }
+  @media (prefers-color-scheme: dark) {
+    :global(:root:not([data-theme='light'])) .themed .on-dark {
+      display: block;
+    }
+    :global(:root:not([data-theme='light'])) .themed .on-light {
+      display: none;
+    }
+  }
+  /* No light version yet: in light mode, put the dark version on a dark panel. */
+  .needs-stage {
+    padding: var(--space-6);
+    border-radius: var(--radius-md);
+    background: var(--color-stage);
+  }
+  :global(:root[data-theme='dark']) .needs-stage {
+    padding: 0;
+    background: none;
+  }
+  @media (prefers-color-scheme: dark) {
+    :global(:root:not([data-theme='light'])) .needs-stage {
+      padding: 0;
+      background: none;
+    }
   }
 
   /* Temporary box until the real visual exists. Dashed so it never

@@ -19,6 +19,10 @@ export interface Visual {
   caption?: string;
   /** Placeholder shape, e.g. '16 / 9'. Real images keep their own ratio. */
   aspect?: string;
+  /** Version for light mode, e.g. 'journey-diagram-light'. When set, `file`
+      is treated as the dark-mode version (transparent, light lines). Until
+      the light file exists, light mode shows `file` on a dark panel. */
+  fileLight?: string;
 }
 
 export interface Gallery {
@@ -99,9 +103,9 @@ export const caseStudies: CaseStudy[] = [
                 alt: 'User flow: on app or website launch a homepage pop-up appears. Know more leads to the landing page; close continues to the homepage, product page, basket and thank-you page, or My account. Every path leads to sign-in, then bank onboarding.',
                 brief: 'User flow diagram',
                 aspect: '2000 / 548',
+                fileLight: 'journey-diagram-light',
               },
             ],
-            stage: true,
             pan: true,
           },
           {
