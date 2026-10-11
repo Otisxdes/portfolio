@@ -230,4 +230,127 @@ export const caseStudies: CaseStudy[] = [
       },
     ],
   },
+  {
+    slug: 'babyshop-rebrand',
+    headline:
+      'Bringing the Babyshop rebrand to three platforms in 60 days, without our usual iterations',
+    facts: [
+      { label: 'Role', value: 'Senior Product Designer' },
+      { label: 'Year', value: '2026' },
+      { label: 'Team', value: 'Three product designers and our lead product designer' },
+      { label: 'Worked with', value: 'The brand agency and the development team' },
+      { label: 'Platforms', value: 'App, Desktop web, Mobile web' },
+    ],
+    outcome: [
+      { value: '60 days', label: 'brief to launch' },
+      { value: '3 platforms', label: 'live on launch day' },
+      { value: '60%', label: 'of the rebrand done through tokens' },
+    ],
+    hero: {
+      file: 'hero',
+      alt: 'The new Babyshop on desktop, app and mobile web, side by side',
+      brief: 'Hero: new Babyshop on desktop, app and mobile web side by side',
+      aspect: '16 / 9',
+    },
+    intro: [
+      'The new Babyshop brand was finished, and its launch date was fixed. There was no time for our normal phased approach, so we made each decision once and committed to it.',
+    ],
+    chapters: [
+      {
+        heading: 'A finished brand, a fixed date',
+        body: [
+          'In our first stakeholder meetings, the agency’s new Babyshop identity was already almost done. Our brief was to bring it to the app, desktop site and mobile web before the official launch.',
+          'Normally we’d roll out a change like this over months, testing and refining as we went. This time, the plan had to be right from the start.',
+        ],
+        galleries: [
+          {
+            visuals: [
+              {
+                file: 'brand-vs-old',
+                alt: 'The agency’s Babyshop brand guidelines next to the old Babyshop site',
+                brief: 'The agency’s brand guidelines next to the old Babyshop site',
+                aspect: '16 / 9',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Polish, not redesign',
+        body: [
+          'The structure of the old Babyshop experience worked, but the visual layer was dated and inconsistent. So we kept the structure and fixed the layer.',
+          'We applied the fundamentals with discipline: hierarchy, contrast, spacing, rhythm and repetition. In 60 days, consistency would do more for Babyshop than reinvention.',
+        ],
+        galleries: [
+          {
+            visuals: [
+              {
+                file: 'before-after',
+                alt: 'One Babyshop screen before and after the rebrand, with the fixes annotated',
+                brief: 'Before / after of one screen, with the fixes annotated',
+                aspect: '16 / 9',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Tokens did most of the work',
+        body: [
+          'I helped build our design system, and we first shipped it on Max. That’s what made 60 days possible.',
+          'I translated the agency’s guidelines into a Babyshop token set covering colour, typography, radius, spacing and layout. Around 60% of the rebrand was applying those tokens to existing components. The other 40% was new work, and I designed those components myself.',
+        ],
+        galleries: [
+          {
+            visuals: [
+              {
+                file: 'tokens',
+                alt: 'The Babyshop token set, and one component themed for Max and for Babyshop',
+                brief: 'Babyshop token set + one component themed for Max and for Babyshop',
+                aspect: '16 / 9',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Who did what',
+        body: [
+          'We split the work by experience. I took desktop, the biggest and slowest platform. My two peers took the app and mobile web.',
+          'When a page needed something the system didn’t have, it came to me, so all three platforms stayed consistent. Our lead kept us moving and made calls quickly when we got stuck.',
+        ],
+      },
+      {
+        heading: 'Good enough, on purpose',
+        body: [
+          'The hardest part for me was the visuals. Good visual design has many layers, and with more time we’d have added more of them. Instead, I decided which layers to ship now and which could wait.',
+          // TODO: add "For example, <one specific layer you deliberately held back, and where>."
+          'We kept the bar high. We just spent our effort where people would notice it.',
+        ],
+        galleries: [
+          {
+            visuals: [
+              {
+                // TODO: pick the screen where the full craft went in.
+                file: 'full-craft',
+                alt: 'A Babyshop screen where the full visual craft went in',
+                brief: 'A screen where the full craft went in (to pick)',
+                aspect: '16 / 9',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Outcome',
+        body: [
+          'Live on app, desktop and mobile web on the brand’s official launch day. Conversion held steady through the switch.',
+          // TODO: formal recognition or award? Name it if it has one.
+          'Recognised by the leadership team at launch.',
+          'At first, 60 days felt unrealistic. I didn’t think we’d make it. What got us there wasn’t working faster. It was agreeing early on what this project would and wouldn’t be, then committing to it.',
+          'Iterating finds the best version. Sometimes the job is to find a good one and ship it.',
+        ],
+      },
+    ],
+  },
 ];

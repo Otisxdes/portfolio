@@ -54,6 +54,16 @@ export const projects: Project[] = [
     hasCaseStudy: false,
   },
   {
+    slug: 'babyshop-rebrand',
+    title: 'Babyshop Rebrand',
+    outcome: 'Live on app, desktop and mobile web in 60 days',
+    discipline: 'Product Design',
+    context: 'Landmark Group',
+    period: '2026',
+    status: 'live',
+    hasCaseStudy: true,
+  },
+  {
     slug: 'shukran-credit-card',
     title: 'ADCB × Shukran Credit Card',
     outcome: '1.6M AED revenue in 6 months',
