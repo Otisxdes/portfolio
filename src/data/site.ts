@@ -73,16 +73,6 @@ export const projects: Project[] = [
     status: 'live',
     hasCaseStudy: true,
   },
-  {
-    slug: 'basket-upsell',
-    title: 'Basket Upsell Experience',
-    outcome: '+7.51% average order value in KSA',
-    discipline: 'Product Design',
-    context: 'Landmark Group',
-    period: '2023–2024',
-    status: 'live',
-    hasCaseStudy: true,
-  },
 ];
 
 export const experience = [
