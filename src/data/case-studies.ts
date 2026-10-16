@@ -28,6 +28,9 @@ export interface Visual {
   /** No background or rounded corners added — for exports with their own
       (transparent) rounded frame. */
   plain?: boolean;
+  /** Layered bento hero (still + phone-screen loop + frame overlay).
+      See src/components/BentoHero.astro for the three files it needs. */
+  bento?: boolean;
 }
 
 export interface Gallery {
@@ -247,10 +250,11 @@ export const caseStudies: CaseStudy[] = [
       { value: '60%', label: 'of the rebrand done through tokens' },
     ],
     hero: {
-      file: 'hero',
-      alt: 'The new Babyshop on desktop, app and mobile web, side by side',
-      brief: 'Hero: new Babyshop on desktop, app and mobile web side by side',
-      aspect: '16 / 9',
+      file: 'bento-hero',
+      alt: 'The new Babyshop app in an iPhone, surrounded by a basket card, 3D brand icons, the colour palette and design-system tokens',
+      brief: 'Bento hero with looping phone screen',
+      aspect: '1440 / 1024',
+      bento: true,
     },
     intro: [
       'The new Babyshop brand was finished, and its launch date was fixed. There was no time for our normal phased approach, so we made each decision once and committed to it.',

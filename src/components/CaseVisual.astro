@@ -11,6 +11,7 @@ import type { ImageMetadata } from 'astro';
 import type { Visual } from '../data/case-studies';
 import Media from './Media.astro';
 import VideoLoop from './VideoLoop.astro';
+import BentoHero from './BentoHero.astro';
 
 interface Props {
   slug: string;
@@ -45,7 +46,9 @@ const aspect = visual.aspect ?? '16 / 10';
 ---
 
 {
-  image && visual.fileLight ? (
+  image && visual.bento ? (
+    <BentoHero slug={slug} alt={visual.alt} priority={priority} />
+  ) : image && visual.fileLight ? (
     <div class:list={['themed', { 'needs-stage': !lightImage }]}>
       <div class="on-dark">
         <Media src={image} alt={visual.alt} caption={visual.caption} priority={priority} sizes={sizes} plain crisp={visual.crisp} />
