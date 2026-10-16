@@ -273,10 +273,10 @@ export const caseStudies: CaseStudy[] = [
           {
             visuals: [
               {
-                file: 'brand-vs-old',
-                alt: 'The agency’s Babyshop brand guidelines next to the old Babyshop site',
-                brief: 'The agency’s brand guidelines next to the old Babyshop site',
-                aspect: '16 / 9',
+                file: 'brand-identity',
+                alt: 'The agency’s new Babyshop identity: wordmark, B monogram, colour palette, line icons, B patterns, English and Arabic type, script lettering and campaign posters',
+                brief: 'The agency’s brand identity board',
+                aspect: '2000 / 1131',
               },
             ],
           },
@@ -339,10 +339,9 @@ export const caseStudies: CaseStudy[] = [
           {
             visuals: [
               {
-                // TODO: pick the screen where the full craft went in.
                 file: 'full-craft',
-                alt: 'A Babyshop screen where the full visual craft went in',
-                brief: 'A screen where the full craft went in (to pick)',
+                alt: 'The rebranded Babyshop desktop journey: homepage, product listing, product page, basket and order confirmation',
+                brief: 'Desktop journey video, home to order confirmation',
                 aspect: '16 / 9',
               },
             ],
