@@ -1,10 +1,12 @@
 ---
-/* Layered hero: a still bento, a looping phone-screen video sized to the
-   mockup's screen, and the phone frame + hearts on top. Three files:
-     src/assets/projects/<slug>/bento-hero.jpg     still (also the reduced-motion view)
-     src/assets/projects/<slug>/bento-overlay.png  frame with the screen cut out
+/* Layered hero: the bento tiles, a looping phone-screen video sized to the
+   mockup's screen, and the phone frame + hearts on top. Files:
+     src/assets/projects/<slug>/bento-hero.*       tiles, transparent background, no phone
+     src/assets/projects/<slug>/bento-overlay.png  phone frame with the screen cut out
      public/media/projects/<slug>/bento-phone-loop.webm / .mp4
-   Both images share the same canvas, so they line up exactly. */
+     public/media/projects/<slug>/bento-phone-loop-poster.jpg  first frame
+   Both images share the same canvas, so they line up exactly. The poster
+   fills the screen before the video loads and for reduced motion. */
 import { Picture } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
 
@@ -34,7 +36,7 @@ const loading = priority ? 'eager' : 'lazy';
 
 {
   still && overlay && (
-    <figure class="bento" style={`aspect-ratio: ${still.width} / ${still.height}`}>
+    <figure class="bento" style={`aspect-ratio: ${overlay.width} / ${overlay.height}`}>
       <Picture
         class="layer"
         src={still}
@@ -46,7 +48,17 @@ const loading = priority ? 'eager' : 'lazy';
         fetchpriority={priority ? 'high' : 'auto'}
         decoding="async"
       />
-      <video data-bento-loop class="screen" muted loop playsinline preload="metadata" aria-hidden="true" tabindex="-1">
+      <video
+        data-bento-loop
+        class="screen"
+        muted
+        loop
+        playsinline
+        preload="metadata"
+        poster={`${video}-poster.jpg`}
+        aria-hidden="true"
+        tabindex="-1"
+      >
         <source src={`${video}.webm`} type="video/webm" />
         <source src={`${video}.mp4`} type="video/mp4" />
       </video>
@@ -107,11 +119,5 @@ const loading = priority ? 'eager' : 'lazy';
     object-fit: fill;
     border-radius: 15.264% / 7.029%;
     background: #fff;
-  }
-  /* Reduced motion: no video, the still already shows the first frame. */
-  @media (prefers-reduced-motion: reduce) {
-    .screen {
-      display: none;
-    }
   }
 </style>
