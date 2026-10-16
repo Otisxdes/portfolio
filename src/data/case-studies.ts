@@ -31,6 +31,9 @@ export interface Visual {
   /** Layered bento hero (still + phone-screen loop + frame overlay).
       See src/components/BentoHero.astro for the three files it needs. */
   bento?: boolean;
+  /** Before / after slider: `file` is the After image, this is the Before
+      (same size and framing), e.g. 'plp-before'. */
+  before?: string;
 }
 
 export interface Gallery {
@@ -289,10 +292,11 @@ export const caseStudies: CaseStudy[] = [
           {
             visuals: [
               {
-                file: 'before-after',
-                alt: 'One Babyshop screen before and after the rebrand, with the fixes annotated',
-                brief: 'Before / after of one screen, with the fixes annotated',
-                aspect: '16 / 9',
+                file: 'plp-after',
+                before: 'plp-before',
+                alt: 'Babyshop product listing page',
+                brief: 'Product listing page, before / after slider',
+                aspect: '16 / 10',
               },
             ],
           },

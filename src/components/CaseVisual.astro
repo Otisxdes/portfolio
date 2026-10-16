@@ -12,6 +12,7 @@ import type { Visual } from '../data/case-studies';
 import Media from './Media.astro';
 import VideoLoop from './VideoLoop.astro';
 import BentoHero from './BentoHero.astro';
+import BeforeAfter from './BeforeAfter.astro';
 
 interface Props {
   slug: string;
@@ -39,6 +40,8 @@ const findImage = (file: string) => {
 const image = findImage(visual.file);
 // Optional light-mode version (see `fileLight` in case-studies.ts).
 const lightImage = visual.fileLight ? findImage(visual.fileLight) : undefined;
+// Optional Before image for a before / after slider (see `before` in case-studies.ts).
+const beforeImage = visual.before ? findImage(visual.before) : undefined;
 
 const videoUrl = `/media/projects/${slug}/${visual.file}.mp4`;
 const hasVideo = !image && existsSync(join(process.cwd(), 'public', videoUrl));
@@ -48,6 +51,8 @@ const aspect = visual.aspect ?? '16 / 10';
 {
   image && visual.bento ? (
     <BentoHero slug={slug} alt={visual.alt} priority={priority} />
+  ) : image && beforeImage ? (
+    <BeforeAfter before={beforeImage} after={image} label={visual.alt} sizes={sizes} />
   ) : image && visual.fileLight ? (
     <div class:list={['themed', { 'needs-stage': !lightImage }]}>
       <div class="on-dark">
