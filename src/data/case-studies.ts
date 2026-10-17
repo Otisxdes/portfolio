@@ -313,9 +313,9 @@ export const caseStudies: CaseStudy[] = [
             visuals: [
               {
                 file: 'tokens',
-                alt: 'The Babyshop token set, and one component themed for Max and for Babyshop',
-                brief: 'Babyshop token set + one component themed for Max and for Babyshop',
-                aspect: '16 / 9',
+                alt: 'The Babyshop token set around the wordmark: colour swatches, spacing, radius and type tokens, with the components they style, such as category tabs, search, size picker, delivery promise and Add to basket',
+                brief: 'Babyshop token set with the components it styles',
+                aspect: '2000 / 1125',
               },
             ],
           },
