@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Site content. Edit copy here — pages and components read from this file.
+   Site content. Edit copy here; pages and components read from this file.
    Lines marked TODO need your input.
    ========================================================================== */
 
@@ -31,7 +31,7 @@ export type ProjectStatus = 'live' | 'in-progress';
 export interface Project {
   slug: string;
   title: string;
-  /** One-line outcome — the business number leads. */
+  /** One-line outcome: the business number leads. */
   outcome: string;
   discipline: string;
   context: string;

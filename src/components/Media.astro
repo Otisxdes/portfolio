@@ -1,5 +1,5 @@
 ---
-/* Optimised image. Put the source file in src/assets/… and import it —
+/* Optimised image. Put the source file in src/assets/… and import it.
    Astro resizes it and serves AVIF/WebP with the right srcset at build time.
 
    Usage:
@@ -18,7 +18,7 @@ interface Props {
   priority?: boolean;
   /** How wide the image renders, so the browser picks the right file. */
   sizes?: string;
-  /** No background or rounded corners — for transparent cut-outs (mockups, diagrams). */
+  /** No background or rounded corners, for transparent cut-outs (mockups, diagrams). */
   plain?: boolean;
   /** Serve the original file untouched (no resizing or recompression).
       For diagrams and line art, where recompression blurs thin lines. */

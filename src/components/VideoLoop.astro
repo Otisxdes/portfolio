@@ -1,5 +1,5 @@
 ---
-/* Silent looping video — for project thumbnails and product walkthroughs.
+/* Silent looping video, for project thumbnails and product walkthroughs.
    Put files in public/media/… (videos aren't processed at build time, so
    export them small: H.264 MP4, ≤ 1600px wide, ideally under 3 MB).
 
@@ -16,7 +16,7 @@ interface Props {
   src: string;
   /** First-frame image shown before load and for reduced-motion users. */
   poster: string;
-  /** What the video shows — read by screen readers. */
+  /** What the video shows, read by screen readers. */
   label: string;
   /** e.g. "16 / 10". Reserves space so the layout doesn't jump. */
   aspect?: string;
@@ -52,7 +52,7 @@ const { src, poster, label, aspect = '16 / 10', class: className } = Astro.props
           if (entry.isIntersecting) {
             if (video.preload === 'none') video.preload = 'auto';
             video.play().catch(() => {
-              /* autoplay blocked — poster stays visible */
+              /* autoplay blocked; poster stays visible */
             });
           } else {
             video.pause();

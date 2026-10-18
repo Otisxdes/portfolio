@@ -1,5 +1,5 @@
 /* Reveal-on-scroll: elements with [data-reveal] fade up once as they enter
-   the viewport. Subtle on purpose — motion supports reading, it isn't the show. */
+   the viewport. Subtle on purpose: motion supports reading, it isn't the show. */
 import { animate, inView, stagger } from 'motion';
 
 // The `js-motion` class that hides [data-reveal] before animating is set by

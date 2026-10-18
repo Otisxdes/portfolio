@@ -1,4 +1,4 @@
-/* Smooth scroll with Lenis — the "soft" scroll feel from the reference.
+/* Smooth scroll with Lenis: the "soft" scroll feel from the reference.
    Skipped entirely for people who ask their OS for reduced motion. */
 import Lenis from 'lenis';
 
@@ -11,7 +11,7 @@ if (!reduceMotion) {
     // Lower = softer / more glide. 0.1 is Lenis's default and close to the reference.
     lerp: 0.1,
     wheelMultiplier: 1,
-    // Leave touch scrolling native on phones — it already feels right there.
+    // Leave touch scrolling native on phones; it already feels right there.
     syncTouch: false,
     autoRaf: true,
   });

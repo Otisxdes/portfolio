@@ -5,7 +5,7 @@
    Two stacked layers:
    - `.art`     the illustration, drawn once and completely static.
    - `.twinkle` a transparent layer where a few small patches of the existing
-                marks, at a time, softly brighten and fade back — like light
+                marks, at a time, softly brighten and fade back, like light
                 catching different parts of the architecture. It only ever
                 redraws marks that are already there, in the same place and shape.
 
@@ -23,10 +23,10 @@
 <script>
   import { asciiArt } from '../data/ascii-art';
 
-  const MIN_CELL = 3; // px — smallest mark spacing (phones)
+  const MIN_CELL = 3; // px: smallest mark spacing (phones)
   const FOCUS_X = 0.775; // where to centre when the art is wider than the screen (Mir-i-Arab)
   const FPS = 30; // plenty for slow fades
-  const FADE = [1500, 3000]; // ms — each twinkle's full fade in + out
+  const FADE = [1500, 3000]; // ms: each twinkle's full fade in + out
   const STRENGTH = [0.6, 1]; // × --ascii-twinkle-peak, varied per twinkle
   const MIN_ACTIVE = 12; // at least this many glints, even on narrow screens
   // A glint lights a small patch: the chosen mark fully, its neighbours less,

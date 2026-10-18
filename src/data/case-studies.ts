@@ -25,7 +25,7 @@ export interface Visual {
   fileLight?: string;
   /** Serve the file exactly as exported (no recompression). For diagrams. */
   crisp?: boolean;
-  /** No background or rounded corners added — for exports with their own
+  /** No background or rounded corners added, for exports with their own
       (transparent) rounded frame. */
   plain?: boolean;
   /** Layered bento hero (still + phone-screen loop + frame overlay).

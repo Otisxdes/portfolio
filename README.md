@@ -23,7 +23,7 @@ npm run check    # type-check
 | A project row in lists | `src/components/ProjectRow.astro` |
 | Smooth scroll feel (Lenis) | `src/scripts/smooth-scroll.ts` → `lerp` |
 | Reveal-on-scroll motion | `src/scripts/reveal.ts` |
-| Pages | `src/pages/` — each file is a URL |
+| Pages | `src/pages/`; each file is a URL |
 | Images and videos | see `src/assets/README.md` |
 | Optimised image / video loop | `src/components/Media.astro`, `VideoLoop.astro` |
 
