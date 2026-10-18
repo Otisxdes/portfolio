@@ -76,6 +76,5 @@ export const projects: Project[] = [
 
 export const experience = [
   { org: 'Landmark Group', role: 'Senior Product Designer', period: 'Dec 2021 – Present' },
-  // TODO: add the years at Bfound.
-  { org: 'Bfound', role: 'Web Designer', period: '' },
+  { org: 'Bfound', role: 'Web Designer', period: 'May 2019 – Nov 2021' },
 ];
