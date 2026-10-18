@@ -7,9 +7,8 @@ export const site = {
   name: 'Otabek Mukhsinov',
   shortName: 'Otabek',
   role: 'Product Designer',
-  // TODO: replace with your final one-liner (15 words or fewer).
   description:
-    'Otabek Mukhsinov — product designer in Dubai, designing e-commerce and loyalty experiences that move business numbers.',
+    'Otabek Mukhsinov, product designer in Dubai who defines the real problem first, then designs for revenue and conversion.',
   url: 'https://www.otisxdes.com',
   email: 'otabek.mukhsinov@gmail.com',
   location: { city: 'Dubai', timeZone: 'Asia/Dubai', zoneLabel: 'GST' },
@@ -76,7 +75,7 @@ export const projects: Project[] = [
 ];
 
 export const experience = [
-  // TODO: confirm title and start year.
-  { org: 'Landmark Group', role: 'Senior Product Designer', period: '20XX – Present' },
-  // TODO: add earlier roles, or remove this comment if Landmark is the only one to show.
+  { org: 'Landmark Group', role: 'Senior Product Designer', period: 'Dec 2021 – Present' },
+  // TODO: add the years at Bfound.
+  { org: 'Bfound', role: 'Web Designer', period: '' },
 ];

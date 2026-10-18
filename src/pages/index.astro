@@ -10,9 +10,9 @@ import { projects, experience, socials, site } from '../data/site';
   <AsciiBackground />
 
   <div class="intro" data-reveal-group>
-    <!-- TODO: your one-liner. Keep it concrete: what you design, where, and for what outcome. -->
-    <p class="lead placeholder" data-reveal>
-      I'm Otabek — [your one-liner goes here, 15 words or fewer].
+    <p class="lead" data-reveal>
+      I'm Otabek, a product designer who defines the real problem first, then designs for revenue and
+      conversion.
     </p>
 
     <p data-reveal>
@@ -42,7 +42,7 @@ import { projects, experience, socials, site } from '../data/site';
           <li class="job" data-reveal>
             <span>{job.org}</span>
             <span class="muted">{job.role}</span>
-            <span class="label period">{job.period}</span>
+            {job.period && <span class="label period">{job.period}</span>}
           </li>
         ))
       }
@@ -82,11 +82,6 @@ import { projects, experience, socials, site } from '../data/site';
     font-size: var(--text-lg);
     line-height: var(--leading-tight);
     font-weight: var(--weight-medium);
-  }
-
-  /* Visible marker for copy that still needs writing. Delete with the TODO. */
-  .placeholder {
-    color: var(--color-text-faint);
   }
 
   .rows {
