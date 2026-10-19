@@ -1,0 +1,229 @@
+---
+/* A section divider drawn as the zigzag LED band (the third homepage
+   ornament), placed under main headings only (Work, Experience, Contact).
+
+   Same tiles, colours and light as the ornaments (--led-* tokens), at a
+   third of their size: a 7-tile-tall zigzag, 12 tiles per tooth, repeated
+   across the full width. A band of light flows along it from left to right
+   now and then; each divider on the page starts a beat after the one above
+   it, so the light cascades down a list.
+
+   - Decorative only: hidden from screen readers.
+   - Only animates while on screen; reduced motion shows a still line. */
+interface Props {
+  style?: string;
+}
+const { style } = Astro.props;
+---
+
+<div class="led-sep" data-led-sep aria-hidden="true" style={style}>
+  <canvas></canvas>
+</div>
+
+<script>
+  const CELL = 2; // css px per tile
+  const PERIOD = 12; // tiles per tooth
+  const AMP = 6; // tiles from crest to trough (7 rows tall)
+  const PAD = 2; // css px of room for the halo above and below
+  const GAP = 0.18; // share of each tile left as grout
+  const BAND = 40; // css px: half-width of the lit band
+  const JITTER = 14; // css px: scatter on the band's edge
+  const SPEED = 90; // css px per second
+  const REST = 4; // s between passes
+  const STAGGER = 0.6; // s between one divider and the next
+  const STEPS = 4;
+  const FPS = 30;
+  const FADE = 0.2; // share of the width, at each end, over which the band dissolves
+
+  type Sep = {
+    el: HTMLElement;
+    canvas: HTMLCanvasElement;
+    ctx: CanvasRenderingContext2D;
+    cells: Array<[number, number, number, number]>; // col, row, per-tile noise, end fade
+    width: number; // css px
+    order: number;
+    visible: boolean;
+  };
+
+  const hash = (n: number) => {
+    const s = Math.sin(n * 12.9898) * 43758.5453;
+    return s - Math.floor(s);
+  };
+  const ease = (t: number) => t * t * (3 - 2 * t);
+
+  // The zigzag, exactly as the ornament draws it: a diagonal line that
+  // turns every AMP tiles, doubled on every other column.
+  // Both ends dissolve: tiles thin out and fade, so the band emerges from
+  // and returns to the page with no hard start or stop.
+  const zigzag = (cols: number) => {
+    const cells: Array<[number, number, number, number]> = [];
+    const add = (x: number, y: number) => {
+      const u = (x + 0.5) / cols;
+      const edge = Math.min(u, 1 - u) / FADE; // 0 at the ends, 1 once clear
+      const f = edge >= 1 ? 1 : edge * edge * (3 - 2 * edge);
+      if (f < 1 && hash(x * 3.1 + y * 17.3 + 5) > f * 1.15) return; // crumble
+      cells.push([x, y, hash(x * 7 + y), f]);
+    };
+    for (let x = 0; x < cols; x++) {
+      const k = x % PERIOD;
+      const y = k <= AMP ? k : PERIOD - k;
+      add(x, y);
+      if (x % 2 === 0 && y + 1 <= AMP) add(x, y + 1);
+    }
+    return cells;
+  };
+
+  const setup = () => {
+    const els = [...document.querySelectorAll<HTMLElement>('[data-led-sep]')];
+    if (!els.length) return;
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    let colors = { lit: '#fff', alt: '#fff', off: '#888', offAlpha: 0.15, litAlpha: 0.9, glow: false };
+    let dpr = 1;
+    let raf = 0;
+    let last = 0;
+    let cycle = 1;
+
+    const seps: Sep[] = els
+      .map((el, order): Sep | null => {
+        const canvas = el.querySelector('canvas');
+        const ctx = canvas?.getContext('2d');
+        return canvas && ctx ? { el, canvas, ctx, cells: [], width: 0, order, visible: false } : null;
+      })
+      .filter((s): s is Sep => s !== null);
+
+    const readColors = () => {
+      const css = getComputedStyle(document.documentElement);
+      const get = (k: string) => css.getPropertyValue(k).trim();
+      colors = {
+        lit: get('--led-lit'),
+        alt: get('--led-lit-alt') || get('--led-lit'),
+        off: get('--led-off'),
+        offAlpha: parseFloat(get('--led-off-alpha')) || 0.15,
+        litAlpha: parseFloat(get('--led-lit-alpha')) || 0.9,
+        glow: get('--led-glow') === '1',
+      };
+    };
+
+    const size = () => {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      let widest = 1;
+      for (const s of seps) {
+        s.width = s.el.clientWidth;
+        widest = Math.max(widest, s.width);
+        s.canvas.width = Math.round(s.width * dpr);
+        s.canvas.height = Math.round((CELL * (AMP + 1) + PAD * 2) * dpr);
+        s.cells = zigzag(Math.floor(s.width / CELL));
+      }
+      // One shared rhythm, so the cascade stays in step.
+      cycle = (widest + BAND * 2) / SPEED + REST;
+    };
+
+    const draw = (s: Sep, now: number | null) => {
+      const { ctx, canvas } = s;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const cell = CELL * dpr;
+      const tile = Math.max(1, Math.round(cell * (1 - GAP)));
+      const inset = Math.round((cell - tile) / 2);
+      const top = Math.round(PAD * dpr);
+      const sweep = (s.width + BAND * 2) / SPEED;
+      let front = -1e9;
+      if (now !== null) {
+        const t = (((now / 1000 - s.order * STAGGER) % cycle) + cycle) % cycle;
+        if (t < sweep) front = -BAND + (s.width + BAND * 2) * ease(t / sweep);
+      }
+      for (const [col, row, h, f] of s.cells) {
+        const x = Math.round(col * cell) + inset;
+        const y = top + Math.round(row * cell) + inset;
+        const d = Math.abs(front - ((col + 0.5) * CELL + (h - 0.5) * JITTER * 2));
+        const b = Math.round(Math.max(0, 1 - d / BAND) * STEPS) / STEPS;
+        if (b >= 0.75 && colors.glow) {
+          ctx.globalAlpha = 0.09 * b * f;
+          ctx.fillStyle = colors.lit;
+          const pad = Math.round(cell * 0.6);
+          ctx.fillRect(x - pad, y - pad, tile + pad * 2, tile + pad * 2);
+        }
+        ctx.globalAlpha = colors.offAlpha * f;
+        ctx.fillStyle = colors.off;
+        ctx.fillRect(x, y, tile, tile);
+        if (b > 0) {
+          ctx.globalAlpha = Math.min(1, colors.litAlpha * b * f);
+          ctx.fillStyle = h > 0.72 ? colors.alt : colors.lit;
+          ctx.fillRect(x, y, tile, tile);
+        }
+      }
+      ctx.globalAlpha = 1;
+    };
+
+    const drawAll = (now: number | null) => {
+      for (const s of seps) if (s.visible || now === null) draw(s, now);
+    };
+    const loop = (now: number) => {
+      raf = requestAnimationFrame(loop);
+      if (now - last < 1000 / FPS) return;
+      last = now;
+      drawAll(now);
+    };
+    const play = () => {
+      cancelAnimationFrame(raf);
+      if (reduceMotion.matches || document.hidden) {
+        drawAll(null);
+        return;
+      }
+      drawAll(performance.now());
+      raf = requestAnimationFrame(loop);
+    };
+    const refresh = () => {
+      readColors();
+      size();
+      play();
+    };
+
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        const s = seps.find((x) => x.el === e.target);
+        if (s) s.visible = e.isIntersecting;
+      }
+    });
+    seps.forEach((s) => io.observe(s.el));
+    const ro = new ResizeObserver(() => refresh());
+    seps.forEach((s) => ro.observe(s.el));
+    const themeObserver = new MutationObserver(refresh);
+    themeObserver.observe(document.documentElement, { attributeFilter: ['data-theme'] });
+    const darkQuery = matchMedia('(prefers-color-scheme: dark)');
+    document.addEventListener('visibilitychange', play);
+    darkQuery.addEventListener('change', refresh);
+    reduceMotion.addEventListener('change', play);
+
+    document.addEventListener(
+      'astro:before-swap',
+      () => {
+        cancelAnimationFrame(raf);
+        io.disconnect();
+        ro.disconnect();
+        themeObserver.disconnect();
+        document.removeEventListener('visibilitychange', play);
+        darkQuery.removeEventListener('change', refresh);
+        reduceMotion.removeEventListener('change', play);
+      },
+      { once: true },
+    );
+
+    refresh();
+  };
+
+  document.addEventListener('astro:page-load', setup);
+</script>
+
+<style>
+  .led-sep {
+    display: block;
+    width: 100%;
+    height: calc(2px * 7 + 4px);
+    pointer-events: none;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+</style>

@@ -1,0 +1,467 @@
+---
+/* Homepage background, option B: the LED ornaments scattered across the
+   whole page at very low strength. Hovering one wakes it: the shape firms up
+   and a band of light travels across it, starting from the side the cursor
+   came in, and repeats while the cursor stays. On touch screens a tap plays
+   it once.
+
+   Same shapes, tiles and light as option A (LedOrnaments.astro: margins
+   only, always cycling). To compare, swap the import in src/pages/index.astro.
+
+   - Shapes: `ornaments` in src/data/ornaments.ts; scatter: `field`.
+   - Colours and strength: --led-* tokens in tokens.css. --led-rest-alpha is
+     the idle strength, --led-off-alpha the strength once awake.
+   - Ornaments behind the text column rest fainter and light at half
+     strength, so reading always wins.
+   - Decorative only: hidden from screen readers, never takes clicks.
+   - Reduced motion: hover firms the shape, no travelling light.
+   - Only redraws while something is awake; idle costs nothing. */
+---
+
+<div class="led-field" data-led-field aria-hidden="true">
+  <canvas data-led-field-canvas></canvas>
+</div>
+
+<script>
+  import { ornaments, field, type Ornament } from '../data/ornaments';
+
+  const GAP = 0.18; // share of each tile left as grout
+  const FPS = 30;
+  const SWEEP_MS = 1800; // light travelling across one ornament
+  const REST_MS = 700; // pause before it travels again (while hovered)
+  const BAND = 0.32; // half-width of the lit band (share of the ornament)
+  const JITTER = 0.16; // per-tile scatter on the band's edge
+  const STEPS = 4; // brightness levels, like a PWM LED
+  const RISE_MS = 220; // shape firming up on hover
+  const FALL_MS = 900; // and settling back after
+  const HIT_PAD = 10; // css px of forgiveness around each ornament
+  const COLUMN_REST = 0.7; // idle strength behind the text, relative
+  const COLUMN_LIT = 0.5; // light strength behind the text, relative
+  const EDGE = 6; // css px kept clear inside each slot
+
+  type Cell = { col: number; row: number; w: number; h: number; nx: number; ny: number };
+  type Mask = { cols: number; rows: number; cells: Cell[] };
+  type Placed = {
+    mask: Mask;
+    x: number; // css px
+    y: number;
+    w: number;
+    h: number;
+    inColumn: boolean;
+    hovered: boolean;
+    heat: number; // 0 idle → 1 awake
+    start: number | null; // when the current sweep began
+    u: Float32Array; // each tile's position along the light's path, 0 to 1
+    levels: Float32Array;
+  };
+
+  const hash = (n: number) => {
+    const s = Math.sin(n * 12.9898) * 43758.5453;
+    return s - Math.floor(s);
+  };
+  const ease = (t: number) => t * t * (3 - 2 * t);
+  // Small seeded random, so the scatter is the same on every visit.
+  const seeded = (seed: number) => () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+
+  // Turn a PNG into tiles: where there is ink and how strong it is.
+  const sample = async (o: Ornament): Promise<Mask> => {
+    const img = new Image();
+    img.src = o.src;
+    await img.decode();
+    const cols = o.cols;
+    const rows = Math.max(1, Math.round((cols * img.naturalHeight) / img.naturalWidth));
+    const c = document.createElement('canvas');
+    c.width = cols;
+    c.height = rows;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    if (!g) return { cols, rows, cells: [] };
+    g.imageSmoothingEnabled = img.naturalWidth > cols;
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(img, 0, 0, cols, rows);
+    const px = g.getImageData(0, 0, cols, rows).data;
+    let hasAlpha = false;
+    for (let i = 3; i < px.length; i += 4) {
+      if (px[i] < 128) {
+        hasAlpha = true;
+        break;
+      }
+    }
+    const seed = o.src.length * 7;
+    const cells: Cell[] = [];
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const i = (row * cols + col) * 4;
+        const lum = (0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]) / 255;
+        const ink = hasAlpha ? px[i + 3] / 255 : o.invert ? lum : 1 - lum;
+        if (ink < 0.25) continue;
+        cells.push({
+          col,
+          row,
+          w: 0.5 + 0.5 * Math.min(1, (ink - 0.25) / 0.5),
+          h: hash(row * cols + col + seed),
+          nx: col + 0.5 - cols / 2,
+          ny: row + 0.5 - rows / 2,
+        });
+      }
+    }
+    return { cols, rows, cells };
+  };
+
+  const cache = new Map<string, Promise<Mask | null>>();
+  const load = (o: Ornament) => {
+    const key = `${o.src}|${o.cols}|${o.invert ? 1 : 0}`;
+    let p = cache.get(key);
+    if (!p) {
+      p = sample(o).catch(() => null);
+      cache.set(key, p);
+    }
+    return p;
+  };
+
+  const setup = async () => {
+    const root = document.querySelector<HTMLElement>('[data-led-field]');
+    const canvas = document.querySelector<HTMLCanvasElement>('[data-led-field-canvas]');
+    const ctx = canvas?.getContext('2d');
+    if (!root || !canvas || !ctx) return;
+
+    const masks = await Promise.all(ornaments.map(load));
+    if (!root.isConnected) return; // navigated away while loading
+
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    let placed: Placed[] = [];
+    let colors = {
+      lit: '#fff',
+      alt: '#fff',
+      off: '#888',
+      rest: 0.05,
+      awake: 0.15,
+      litAlpha: 0.9,
+      glow: false,
+    };
+    let dpr = 1;
+    let pointer: { x: number; y: number } | null = null;
+    let raf = 0;
+    let last = 0;
+    let running = false;
+
+    // Point the light so it travels away from where the cursor is.
+    const aim = (p: Placed) => {
+      let dx = Math.cos(0.6);
+      let dy = Math.sin(0.6);
+      if (pointer) {
+        const vx = p.x + p.w / 2 - pointer.x;
+        const vy = p.y + p.h / 2 - pointer.y;
+        const len = Math.hypot(vx, vy);
+        if (len > 1) {
+          dx = vx / len;
+          dy = vy / len;
+        }
+      }
+      const cells = p.mask.cells;
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (let k = 0; k < cells.length; k++) {
+        const v = cells[k].nx * dx + cells[k].ny * dy;
+        p.u[k] = v;
+        lo = Math.min(lo, v);
+        hi = Math.max(hi, v);
+      }
+      const span = hi - lo || 1;
+      for (let k = 0; k < cells.length; k++) p.u[k] = (p.u[k] - lo) / span;
+    };
+
+    // Read tokens, size the canvas, scatter ornaments over a grid of slots
+    // (odd rows shifted half a slot, like brickwork, to avoid a visible grid).
+    const layout = () => {
+      const css = getComputedStyle(document.documentElement);
+      const get = (k: string) => css.getPropertyValue(k).trim();
+      colors = {
+        lit: get('--led-lit'),
+        alt: get('--led-lit-alt') || get('--led-lit'),
+        off: get('--led-off'),
+        rest: parseFloat(get('--led-rest-alpha')) || 0.05,
+        awake: parseFloat(get('--led-off-alpha')) || 0.15,
+        litAlpha: parseFloat(get('--led-lit-alpha')) || 0.9,
+        glow: get('--led-glow') === '1',
+      };
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      if (!vw || !vh) return;
+      canvas.width = Math.round(vw * dpr);
+      canvas.height = Math.round(vh * dpr);
+
+      let left = vw / 2;
+      let right = vw / 2;
+      const main = document.querySelector('main');
+      if (main) {
+        const r = main.getBoundingClientRect();
+        const cs = getComputedStyle(main);
+        left = r.left + (parseFloat(cs.paddingLeft) || 0);
+        right = r.right - (parseFloat(cs.paddingRight) || 0);
+      }
+
+      const pitch = vw < 600 ? field.pitchSmall : field.pitch;
+      const cols = Math.max(1, Math.round(vw / field.slot));
+      const rows = Math.max(1, Math.round(vh / field.slot));
+      const sw = vw / cols;
+      const sh = vh / rows;
+
+      placed = [];
+      for (let r = 0; r < rows; r++) {
+        const shift = r % 2 ? sw / 2 : 0;
+        for (let c = 0; c < cols + (shift ? 1 : 0); c++) {
+          const rand = seeded(field.seed * 100003 + r * 7919 + c * 104729);
+          if (rand() > field.fill) continue;
+          const mask = masks[Math.floor(rand() * ornaments.length)];
+          if (!mask || !mask.cells.length) continue;
+          const w = pitch * mask.cols;
+          const h = pitch * mask.rows;
+          if (w > sw - EDGE * 2 || h > sh - EDGE * 2) continue;
+          const x = Math.round(c * sw - shift + EDGE + rand() * (sw - w - EDGE * 2));
+          const y = Math.round(r * sh + EDGE + rand() * (sh - h - EDGE * 2));
+          if (x + w < 0 || x > vw) continue;
+          placed.push({
+            mask,
+            x,
+            y,
+            w,
+            h,
+            inColumn: x < right && x + w > left,
+            hovered: false,
+            heat: 0,
+            start: null,
+            u: new Float32Array(mask.cells.length),
+            levels: new Float32Array(mask.cells.length),
+          });
+        }
+      }
+    };
+
+    // Advance each ornament's state. Returns true while anything is awake.
+    const step = (now: number, dt: number) => {
+      let active = false;
+      const still = reduceMotion.matches;
+      for (const p of placed) {
+        if (!still) {
+          if (p.start !== null) {
+            const age = now - p.start;
+            if (age > SWEEP_MS + (p.hovered ? REST_MS : 0)) {
+              p.start = p.hovered ? now : null;
+              if (p.hovered) aim(p);
+            }
+          } else if (p.hovered) {
+            p.start = now;
+            aim(p);
+          }
+        }
+        const target = p.hovered || p.start !== null ? 1 : 0;
+        const tau = still ? 1 : target > p.heat ? RISE_MS : FALL_MS;
+        p.heat += (target - p.heat) * (1 - Math.exp(-dt / tau));
+        if (target === 0 && p.heat < 0.01) p.heat = 0;
+        if (p.heat > 0 || p.start !== null || p.hovered) active = true;
+      }
+      return active;
+    };
+
+    const draw = (now: number) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const p of placed) {
+        const cell = Math.round((p.w / p.mask.cols) * dpr);
+        const size = Math.max(1, Math.round(cell * (1 - GAP)));
+        const inset = Math.round((cell - size) / 2);
+        const ox = Math.round(p.x * dpr);
+        const oy = Math.round(p.y * dpr);
+        const cells = p.mask.cells;
+        const rest = colors.rest * (p.inColumn ? COLUMN_REST : 1);
+        const shape = rest + (colors.awake - rest) * p.heat;
+
+        const age = p.start === null ? Infinity : now - p.start;
+        const sweeping = age < SWEEP_MS;
+        let any = false;
+        if (sweeping) {
+          const front = -BAND + (1 + 2 * BAND) * ease(Math.max(0, age) / SWEEP_MS);
+          for (let k = 0; k < cells.length; k++) {
+            const d = Math.abs(front - (p.u[k] + (cells[k].h - 0.5) * JITTER * 2));
+            const b = Math.round(Math.max(0, 1 - d / BAND) * STEPS) / STEPS;
+            p.levels[k] = b;
+            if (b > 0) any = true;
+          }
+        }
+        const litScale = colors.litAlpha * p.heat * (p.inColumn ? COLUMN_LIT : 1);
+
+        if (any && colors.glow && !p.inColumn) {
+          ctx.fillStyle = colors.lit;
+          const pad = Math.round(cell * 0.6);
+          for (let k = 0; k < cells.length; k++) {
+            const b = p.levels[k];
+            if (b < 0.75) continue;
+            ctx.globalAlpha = 0.09 * b * p.heat;
+            ctx.fillRect(
+              ox + cells[k].col * cell + inset - pad,
+              oy + cells[k].row * cell + inset - pad,
+              size + pad * 2,
+              size + pad * 2,
+            );
+          }
+        }
+
+        for (let k = 0; k < cells.length; k++) {
+          const c = cells[k];
+          const x = ox + c.col * cell + inset;
+          const y = oy + c.row * cell + inset;
+          ctx.globalAlpha = shape * c.w;
+          ctx.fillStyle = colors.off;
+          ctx.fillRect(x, y, size, size);
+          if (any && p.levels[k] > 0) {
+            ctx.globalAlpha = Math.min(1, litScale * p.levels[k] * (0.65 + 0.35 * c.w));
+            ctx.fillStyle = c.h > 0.72 ? colors.alt : colors.lit;
+            ctx.fillRect(x, y, size, size);
+          }
+        }
+      }
+      ctx.globalAlpha = 1;
+    };
+
+    // The loop runs only while something is awake, then goes back to sleep.
+    const tick = (now: number) => {
+      if (last && now - last < 1000 / FPS) {
+        raf = requestAnimationFrame(tick);
+        return;
+      }
+      const dt = last ? Math.min(100, now - last) : 1000 / FPS;
+      last = now;
+      const active = step(now, dt);
+      draw(now);
+      if (active) raf = requestAnimationFrame(tick);
+      else {
+        running = false;
+        last = 0;
+      }
+    };
+    const wake = () => {
+      if (running || document.hidden) return;
+      running = true;
+      last = 0;
+      raf = requestAnimationFrame(tick);
+    };
+    const sleep = () => {
+      cancelAnimationFrame(raf);
+      running = false;
+      last = 0;
+    };
+
+    const hit = (x: number, y: number) =>
+      placed.find(
+        (p) => x >= p.x - HIT_PAD && x <= p.x + p.w + HIT_PAD && y >= p.y - HIT_PAD && y <= p.y + p.h + HIT_PAD,
+      ) ?? null;
+
+    // Mouse: hovering wakes an ornament. Touch/pen: a tap plays it once.
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse') return;
+      pointer = { x: e.clientX, y: e.clientY };
+      const target = hit(pointer.x, pointer.y);
+      let changed = false;
+      for (const p of placed) {
+        const want = p === target;
+        if (p.hovered !== want) {
+          p.hovered = want;
+          changed = true;
+        }
+      }
+      if (changed) wake();
+    };
+    const onLeave = () => {
+      pointer = null;
+      let changed = false;
+      for (const p of placed) {
+        if (p.hovered) changed = true;
+        p.hovered = false;
+      }
+      if (changed) wake();
+    };
+    const onTap = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse' || reduceMotion.matches) return;
+      const p = hit(e.clientX, e.clientY);
+      if (!p || p.start !== null) return;
+      pointer = { x: e.clientX, y: e.clientY };
+      p.start = performance.now();
+      aim(p);
+      wake();
+    };
+
+    const refresh = () => {
+      sleep();
+      layout();
+      draw(performance.now());
+    };
+    const onVisibility = () => {
+      if (document.hidden) sleep();
+      else wake();
+    };
+
+    let resizeTimer = 0;
+    const onResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(refresh, 150);
+    };
+    const themeObserver = new MutationObserver(refresh);
+    themeObserver.observe(document.documentElement, { attributeFilter: ['data-theme'] });
+    const darkQuery = matchMedia('(prefers-color-scheme: dark)');
+    window.addEventListener('resize', onResize);
+    window.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('pointerdown', onTap, { passive: true });
+    document.documentElement.addEventListener('mouseleave', onLeave);
+    document.addEventListener('visibilitychange', onVisibility);
+    darkQuery.addEventListener('change', refresh);
+    reduceMotion.addEventListener('change', refresh);
+
+    // Leaving the homepage: stop the loop and drop every listener.
+    document.addEventListener(
+      'astro:before-swap',
+      () => {
+        sleep();
+        clearTimeout(resizeTimer);
+        themeObserver.disconnect();
+        window.removeEventListener('resize', onResize);
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerdown', onTap);
+        document.documentElement.removeEventListener('mouseleave', onLeave);
+        document.removeEventListener('visibilitychange', onVisibility);
+        darkQuery.removeEventListener('change', refresh);
+        reduceMotion.removeEventListener('change', refresh);
+      },
+      { once: true },
+    );
+
+    refresh();
+    root.classList.add('is-ready');
+  };
+
+  document.addEventListener('astro:page-load', setup);
+</script>
+
+<style>
+  .led-field {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1.2s var(--ease-out);
+  }
+  .led-field.is-ready {
+    opacity: 1;
+  }
+  canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+</style>

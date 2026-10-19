@@ -84,6 +84,34 @@
   --ascii-twinkle-peak: 0.4;
   --ascii-twinkle-density: 0.005;
 
+  /* Homepage LED ornaments. The blue pair comes from the glazed-tile
+     reference: cobalt (deep) and turquoise (light). The two swap roles
+     between themes so each reads on its own ground.
+     Light page: cobalt tiles light up over a faint turquoise shape.
+     Dark page: turquoise tiles light up over a faint cobalt shape. */
+  --led-lit: #02088d;
+  --led-lit-alt: #185ba1; /* a second glaze, mixed in on ~1 in 4 tiles */
+  --led-off: #1ea4cc;
+  --led-off-alpha: 0.16; /* resting strength of the shape */
+  --led-rest-alpha: 0.07; /* full-page field: idle strength (very low) */
+  --led-lit-alpha: 0.9;
+  --led-glow: 0; /* 1 adds a soft halo; only works on a dark ground */
+
+  /* Homepage tile wall (components/TileWall.astro). The tiles rest in grey,
+     barely visible; colour comes from gradients over them: a faint drift,
+     and the trail the cursor paints. --wall-ramp is the tile palette from
+     "faint" to "strongest" on this theme's ground (the trail's tail sits low
+     on it, its head high).
+     Light page: ivory → turquoise → cobalt → deep indigo. */
+  --wall-ramp: #f3ece0, #2eb8d8, #1ea4cc, #185ba1, #02088d, #1f1b60;
+  /* The resting tiles: greys only. */
+  --wall-neutral: #f4f4f2, #ececea, #e2e2de, #d6d6d1, #c6c6c0, #b2b2ac;
+  /* Where each pattern letter sits on the ramp: ground, motif, halo, core. */
+  --wall-class-pos: 0.32, 0.8, 0.02, 0.98;
+  --wall-alpha: 0.08; /* resting tiles: barely visible */
+  --wall-ambient: 0.1; /* the slow drifting gradient, 0 = none */
+  --wall-trail-alpha: 0.85; /* the cursor trail at its strongest */
+
   color-scheme: light;
 }
 
@@ -102,6 +130,19 @@
   --color-focus: #7aa5ff;
   --ascii-opacity: 0.18;
   --ascii-twinkle-peak: 0.36;
+  --led-lit: #2eb8d8;
+  --led-lit-alt: #1ea4cc;
+  --led-off: #7c9cc4; /* soft slate blue: supports the highlight */
+  --led-off-alpha: 0.26;
+  --led-rest-alpha: 0.3;
+  --led-lit-alpha: 0.95;
+  --led-glow: 1;
+  --wall-ramp: #1f1b60, #02088d, #185ba1, #1ea4cc, #2eb8d8, #f3ece0;
+  --wall-neutral: #1a1a19, #222220, #2c2c2a, #3a3a37, #4a4a46, #5e5e5a;
+  --wall-class-pos: 0.12, 0.7, 0.45, 0.9;
+  --wall-alpha: 0.14;
+  --wall-ambient: 0.1;
+  --wall-trail-alpha: 0.9;
   color-scheme: dark;
 }
 
@@ -118,6 +159,19 @@
     --color-focus: #7aa5ff;
     --ascii-opacity: 0.18;
     --ascii-twinkle-peak: 0.36;
+    --led-lit: #2eb8d8;
+    --led-lit-alt: #1ea4cc;
+    --led-off: #7c9cc4; /* soft slate blue: supports the highlight */
+    --led-off-alpha: 0.26;
+    --led-rest-alpha: 0.3;
+    --led-lit-alpha: 0.95;
+    --led-glow: 1;
+    --wall-ramp: #1f1b60, #02088d, #185ba1, #1ea4cc, #2eb8d8, #f3ece0;
+    --wall-neutral: #1a1a19, #222220, #2c2c2a, #3a3a37, #4a4a46, #5e5e5a;
+    --wall-class-pos: 0.12, 0.7, 0.45, 0.9;
+    --wall-alpha: 0.14;
+    --wall-ambient: 0.1;
+    --wall-trail-alpha: 0.9;
     color-scheme: dark;
   }
 }

@@ -1,0 +1,514 @@
+---
+/* Homepage background: LED-tile ornaments in the side margins.
+
+   Each ornament is a PNG (public/ornaments/) sampled into a grid of square
+   tiles. An ornament rests as a faint shape; every so often a band of light
+   travels across it and the tiles light up in a few steps, with a ragged
+   edge, like an LED panel.
+
+   Extensions (optional, per ornament): the ornament's own pattern continues
+   around it as a lattice, inside an irregular patch whose edge is shaped by
+   noise, like a coastline on a map. Toward that edge the tiles fade and
+   crumble away into the page. The original keeps its exact look, and its
+   band of light keeps travelling, at the same speed, through the whole patch.
+   Patches always fade out before they reach the text column.
+
+   - Which ornaments, where, how fast, extensions, and the small scattered
+     fragments: src/data/ornaments.ts
+   - Colours and strength: --led-* tokens in tokens.css (cobalt and turquoise
+     from the tile reference; their roles swap between dark and light).
+   - Scroll: the shapes drift up at a small share of the scroll speed
+     (PARALLAX), eased, so they sit slightly behind the page.
+   - Decorative only: hidden from screen readers.
+   - Reduced motion: one still frame. Paused while the tab is hidden. */
+---
+
+<div class="led-bg" data-led-bg aria-hidden="true">
+  <canvas data-led-canvas></canvas>
+</div>
+
+<script>
+  import { ornaments, fragments, type Ornament, type Extend } from '../data/ornaments';
+
+  const all: Ornament[] = [...ornaments, ...fragments];
+
+  const MIN_CELL = 3; // css px: smallest tile pitch
+  const MAX_CELL = 6; // css px: largest tile pitch
+  const GAP = 0.18; // share of each tile left as grout
+  const MARGIN = 28; // css px kept clear between ornaments and the text
+  const GUARD = 90; // css px over which an extension fades out before that
+  const EDGE = 16; // css px kept clear from the screen edge
+  const REF_COLS = 15; // tile size is chosen so an ornament this wide fits
+  const FPS = 30;
+  const SWEEP = 0.45; // share of the ornament's cycle the light is travelling
+  const BAND = 0.32; // half-width of the lit band (share of the ornament)
+  const JITTER = 0.16; // per-tile scatter on the band's edge
+  const STEPS = 4; // brightness levels, like a PWM LED
+  const PARALLAX = 0.14; // shapes drift up at this share of the scroll speed
+  const FOLLOW = 0.14; // s: how softly the drift follows the scroll
+
+  type Mask = { cols: number; rows: number; ink: Float32Array };
+  type Cell = { col: number; row: number; w: number; h: number; p: number; fade: number };
+  type Placed = {
+    cells: Cell[];
+    x: number; // device px of tile (0, 0)
+    y: number;
+    cell: number; // device px per tile
+    levels: Float32Array;
+    // Light: positions are in tiles along the light's direction.
+    lo: number; // start of the patch
+    span: number; // length of the patch
+    mid: number; // middle of the original (for the still frame)
+    band: number; // half-width of the band
+    jitter: number;
+    sweep: number; // s the light takes to cross the patch
+    cycle: number; // s per full cycle (sweep + rest)
+    delay: number; // 0 to 1
+    drift: number; // scroll drift relative to the main ornaments
+  };
+
+  // Repeatable noise, so each tile and each coastline keeps its character.
+  const hash = (x: number, y: number, s = 0) => {
+    const v = Math.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453;
+    return v - Math.floor(v);
+  };
+  const noise = (x: number, y: number, s: number) => {
+    const xi = Math.floor(x);
+    const yi = Math.floor(y);
+    const xf = x - xi;
+    const yf = y - yi;
+    const u = xf * xf * (3 - 2 * xf);
+    const v = yf * yf * (3 - 2 * yf);
+    const a = hash(xi, yi, s);
+    const b = hash(xi + 1, yi, s);
+    const c = hash(xi, yi + 1, s);
+    const d = hash(xi + 1, yi + 1, s);
+    return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+  };
+  // Layered noise (-1 to 1): big bays with smaller inlets and islands.
+  const fbm = (x: number, y: number, s: number) => {
+    let total = 0;
+    let amp = 0.5;
+    let freq = 1;
+    let norm = 0;
+    for (let i = 0; i < 4; i++) {
+      total += amp * noise(x * freq, y * freq, s + i * 17);
+      norm += amp;
+      amp *= 0.5;
+      freq *= 2.03;
+    }
+    return (total / norm) * 2 - 1;
+  };
+  const smooth = (a: number, b: number, v: number) => {
+    const t = Math.min(1, Math.max(0, (v - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  };
+  const ease = (t: number) => t * t * (3 - 2 * t);
+
+  // PNG → ink strength per tile (0 = empty).
+  const sample = async (o: Ornament): Promise<Mask> => {
+    const img = new Image();
+    img.src = o.src;
+    await img.decode();
+    const cols = o.cols;
+    const rows = Math.max(1, Math.round((cols * img.naturalHeight) / img.naturalWidth));
+    const ink = new Float32Array(cols * rows);
+    const c = document.createElement('canvas');
+    c.width = cols;
+    c.height = rows;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    if (!g) return { cols, rows, ink };
+    g.imageSmoothingEnabled = img.naturalWidth > cols;
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(img, 0, 0, cols, rows);
+    const px = g.getImageData(0, 0, cols, rows).data;
+    let hasAlpha = false;
+    for (let i = 3; i < px.length; i += 4) {
+      if (px[i] < 128) {
+        hasAlpha = true;
+        break;
+      }
+    }
+    for (let i = 0; i < cols * rows; i++) {
+      const lum = (0.2126 * px[i * 4] + 0.7152 * px[i * 4 + 1] + 0.0722 * px[i * 4 + 2]) / 255;
+      const v = hasAlpha ? px[i * 4 + 3] / 255 : o.invert ? lum : 1 - lum;
+      ink[i] = v < 0.25 ? 0 : 0.5 + 0.5 * Math.min(1, (v - 0.25) / 0.5);
+    }
+    return { cols, rows, ink };
+  };
+
+  const cache = new Map<string, Promise<Mask | null>>();
+  const load = (o: Ornament) => {
+    const key = `${o.src}|${o.cols}|${o.invert ? 1 : 0}`;
+    let p = cache.get(key);
+    if (!p) {
+      p = sample(o).catch(() => null);
+      cache.set(key, p);
+    }
+    return p;
+  };
+
+  const setup = async () => {
+    const root = document.querySelector<HTMLElement>('[data-led-bg]');
+    const canvas = document.querySelector<HTMLCanvasElement>('[data-led-canvas]');
+    const ctx = canvas?.getContext('2d');
+    if (!root || !canvas || !ctx) return;
+
+    const masks = await Promise.all(all.map(load));
+    if (!root.isConnected) return; // navigated away while loading
+
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    let placed: Placed[] = [];
+    let colors = { lit: '#fff', alt: '#fff', off: '#888', offAlpha: 0.15, litAlpha: 0.9, glow: false };
+    let dpr = 1;
+    let raf = 0;
+    let last = 0;
+    let shift = 0; // css px the shapes have drifted so far
+    let target = 0; // css px they are heading to
+    let lastNow = 0;
+
+    const readTarget = () => {
+      if (reduceMotion.matches) return 0;
+      return Math.min(0, Math.max(-window.innerHeight * 0.5, -window.scrollY * PARALLAX));
+    };
+
+    // The ornament, plus (if it has one) its extension patch, as tiles.
+    const buildCells = (
+      o: Ornament,
+      mask: Mask,
+      x0: number, // css px of tile (0, 0)
+      y0: number,
+      cell: number, // css px
+      text: { left: number; right: number },
+      vw: number,
+      vh: number,
+    ) => {
+      const { cols, rows, ink } = mask;
+      const at = (c: number, r: number) => ink[r * cols + c] || 0;
+      const a = ((o.angle ?? 35) * Math.PI) / 180;
+      const dx = Math.cos(a);
+      const dy = Math.sin(a);
+      const cx = (cols - 1) / 2;
+      const cy = (rows - 1) / 2;
+      const seed = o.src.length * 7;
+      const cells: Cell[] = [];
+      const add = (col: number, row: number, w: number, fade: number) =>
+        cells.push({ col, row, w, fade, h: hash(col, row, seed), p: (col - cx) * dx + (row - cy) * dy });
+
+      // The original, untouched. (A fragment has none: only the lattice.)
+      const frag = o.fragment;
+      if (!frag)
+        for (let row = 0; row < rows; row++)
+          for (let col = 0; col < cols; col++) {
+            const w = at(col, row);
+            if (w) add(col, row, w, 1);
+          }
+
+      // A fragment is a small patch with no solid core: it dissolves from
+      // its centre out, over roughly `reps` repetitions of the pattern.
+      const e: Extend | undefined = frag
+        ? {
+            rx: frag.reps * Math.max(1, cols - 1) * 0.62,
+            ry: frag.reps * Math.max(1, rows - 1) * 0.62,
+            rough: frag.rough ?? 0.9,
+            grain: frag.grain ?? 0.11,
+            soft: 0.95,
+            seed: frag.seed,
+          }
+        : o.extend;
+      if (!e) return cells;
+      const ox = frag?.ox ?? 0;
+      const oy = frag?.oy ?? 0;
+      const strength = frag ? (frag.strength ?? 0.7) : 1;
+      const rough = e.rough ?? 0.6;
+      const grain = e.grain ?? 0.09;
+      const soft = e.soft ?? 0.3;
+      const s = e.seed ?? 1;
+      // The pattern repeats every (size - 1) tiles, so neighbours share
+      // their outermost row/column and interlock tip to tip.
+      const P = Math.max(1, cols - 1);
+      const Q = Math.max(1, rows - 1);
+      const motif = (col: number, row: number) => {
+        const lc = ((col % P) + P) % P;
+        const lr = ((row % Q) + Q) % Q;
+        let v = at(lc, lr);
+        if (lc === 0) v = Math.max(v, at(P, lr));
+        if (lr === 0) v = Math.max(v, at(lc, Q));
+        if (lc === 0 && lr === 0) v = Math.max(v, at(P, Q));
+        return v;
+      };
+      const reachX = Math.ceil(e.rx * 1.4);
+      const reachY = Math.ceil(e.ry * 1.4);
+      for (let row = Math.floor(cy - reachY); row <= Math.ceil(cy + reachY); row++) {
+        for (let col = Math.floor(cx - reachX); col <= Math.ceil(cx + reachX); col++) {
+          if (!frag && col >= 0 && col < cols && row >= 0 && row < rows) continue; // the original
+          const w = motif(col + ox, row + oy);
+          if (!w) continue;
+          // Irregular patch: an oval pushed in and out by noise, so the
+          // edge has bays, headlands and the odd island.
+          const r = Math.hypot((col - cx) / e.rx, (row - cy) / e.ry);
+          // The noise only acts toward the rim (r grows from the centre), so
+          // the core stays whole and only the outer edge breaks up and fades.
+          const rim = smooth(frag ? 0.05 : 0.35, 0.95, r);
+          const field = 1 - r + fbm(col * grain, row * grain, s) * rough * rim;
+          const base = smooth(0, soft, field);
+          if (base <= 0.02) continue;
+          // Crumble: toward the edge, more tiles are simply missing.
+          if (hash(col, row, s + 5) < (1 - base) * 0.7) continue;
+          let fade = base * strength;
+          // On screen, and fading out well before the text.
+          const px = x0 + (col + 0.5) * cell;
+          const py = y0 + (row + 0.5) * cell;
+          if (px < cell || px > vw - cell || py < -vh * 0.5 || py > vh * 1.5) continue;
+          const clear = o.side === 'left' ? text.left - px : px - text.right;
+          fade *= smooth(MARGIN * 0.5, MARGIN * 0.5 + GUARD, clear);
+          if (fade <= 0.02) continue;
+          add(col, row, w, fade);
+        }
+      }
+      return cells;
+    };
+
+    // Read the tokens, size the canvas, place each ornament in the margin
+    // beside the reading column, and build its tiles.
+    const layout = () => {
+      const css = getComputedStyle(document.documentElement);
+      const get = (k: string) => css.getPropertyValue(k).trim();
+      colors = {
+        lit: get('--led-lit'),
+        alt: get('--led-lit-alt') || get('--led-lit'),
+        off: get('--led-off'),
+        offAlpha: parseFloat(get('--led-off-alpha')) || 0.15,
+        litAlpha: parseFloat(get('--led-lit-alpha')) || 0.9,
+        glow: get('--led-glow') === '1',
+      };
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      if (!vw || !vh) return;
+      canvas.width = Math.round(vw * dpr);
+      canvas.height = Math.round(vh * dpr);
+
+      // The reading column's text edges (the page's own padding excluded).
+      let left = vw / 2;
+      let right = vw / 2;
+      const main = document.querySelector('main');
+      if (main) {
+        const r = main.getBoundingClientRect();
+        const cs = getComputedStyle(main);
+        left = r.left + (parseFloat(cs.paddingLeft) || 0);
+        right = r.right - (parseFloat(cs.paddingRight) || 0);
+      }
+      const margin = {
+        left: [EDGE, left - MARGIN],
+        right: [right + MARGIN, vw - EDGE],
+      };
+
+      // One tile size for every ornament, so the grid stays consistent.
+      const narrow = Math.min(margin.left[1] - margin.left[0], margin.right[1] - margin.right[0]);
+      const baseCell = Math.min(MAX_CELL, Math.floor(narrow / REF_COLS));
+
+      placed = [];
+      if (baseCell < MIN_CELL) return; // margins too narrow: draw nothing
+      all.forEach((o, i) => {
+        const mask = masks[i];
+        if (!mask) return;
+        const [a, b] = margin[o.side];
+        const room = b - a;
+        // Fragments may use a slightly smaller tile than the main ornaments.
+        const cell = o.fragment ? Math.max(MIN_CELL, Math.round(baseCell * (o.fragment.scale ?? 1))) : baseCell;
+        if (cell * mask.cols > room) return; // doesn't fit this margin
+        const w = cell * mask.cols;
+        const h = cell * mask.rows;
+        const x = Math.round(o.side === 'left' ? a + (room - w) * o.t : b - w - (room - w) * o.t);
+        const y = Math.round(Math.min(vh * o.y, vh - h - EDGE));
+        const cells = buildCells(o, mask, x, y, cell, { left, right }, vw, vh);
+        if (!cells.length) return;
+
+        // The light keeps the original's band width and speed, and simply
+        // has further to travel when there is a patch around it.
+        let oLo = Infinity;
+        let oHi = -Infinity;
+        let lo = Infinity;
+        let hi = -Infinity;
+        for (const c of cells) {
+          lo = Math.min(lo, c.p);
+          hi = Math.max(hi, c.p);
+          if (c.fade === 1 && c.col >= 0 && c.col < mask.cols && c.row >= 0 && c.row < mask.rows) {
+            oLo = Math.min(oLo, c.p);
+            oHi = Math.max(oHi, c.p);
+          }
+        }
+        if (oLo === Infinity) {
+          // A fragment has no original: its whole patch sets the scale.
+          oLo = lo;
+          oHi = hi;
+        }
+        const oSpan = oHi - oLo || 1;
+        const period = o.period ?? 14;
+        const band = BAND * oSpan;
+        const speed = (oSpan * (1 + 2 * BAND)) / (SWEEP * period); // tiles per second
+        const span = hi - lo || 1;
+        const sweep = (span + 2 * band) / speed;
+        placed.push({
+          cells,
+          x: Math.round(x * dpr),
+          y: Math.round(y * dpr),
+          cell: Math.round(cell * dpr),
+          levels: new Float32Array(cells.length),
+          lo,
+          span,
+          mid: (oLo + oHi) / 2,
+          band,
+          jitter: JITTER * oSpan,
+          sweep,
+          cycle: sweep + (1 - SWEEP) * period,
+          delay: o.delay ?? 0,
+          drift: o.fragment?.drift ?? 1,
+        });
+      });
+    };
+
+    const draw = (now: number | null) => {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const p of placed) {
+        ctx.setTransform(1, 0, 0, 1, 0, Math.round(shift * p.drift * dpr));
+        let front = -1e9;
+        if (now === null) front = p.mid;
+        else {
+          const t = (now / 1000 + p.delay * p.cycle) % p.cycle;
+          if (t < p.sweep) front = p.lo - p.band + (p.span + 2 * p.band) * ease(t / p.sweep);
+        }
+        const size = Math.max(1, Math.round(p.cell * (1 - GAP)));
+        const inset = Math.round((p.cell - size) / 2);
+        const cells = p.cells;
+
+        // Brightness per tile: a band of light around `front`, scattered at
+        // the edge and snapped to a few steps.
+        let any = false;
+        for (let k = 0; k < cells.length; k++) {
+          const c = cells[k];
+          const d = Math.abs(front - (c.p + (c.h - 0.5) * p.jitter * 2));
+          const b = Math.round(Math.max(0, 1 - d / p.band) * STEPS) / STEPS;
+          p.levels[k] = b;
+          if (b > 0) any = true;
+        }
+
+        // Soft halo behind the brightest tiles (dark theme only).
+        if (colors.glow && any) {
+          ctx.fillStyle = colors.lit;
+          const pad = Math.round(p.cell * 0.6);
+          for (let k = 0; k < cells.length; k++) {
+            const b = p.levels[k];
+            if (b < 0.75) continue;
+            const c = cells[k];
+            ctx.globalAlpha = 0.09 * b * c.fade;
+            ctx.fillRect(p.x + c.col * p.cell + inset - pad, p.y + c.row * p.cell + inset - pad, size + pad * 2, size + pad * 2);
+          }
+        }
+
+        // The tiles: the faint resting shape, plus the light on top.
+        for (let k = 0; k < cells.length; k++) {
+          const c = cells[k];
+          const x = p.x + c.col * p.cell + inset;
+          const y = p.y + c.row * p.cell + inset;
+          ctx.globalAlpha = colors.offAlpha * c.w * c.fade;
+          ctx.fillStyle = colors.off;
+          ctx.fillRect(x, y, size, size);
+          const b = p.levels[k];
+          if (b > 0) {
+            ctx.globalAlpha = Math.min(1, colors.litAlpha * b * (0.65 + 0.35 * c.w) * c.fade);
+            ctx.fillStyle = c.h > 0.72 ? colors.alt : colors.lit;
+            ctx.fillRect(x, y, size, size);
+          }
+        }
+      }
+      ctx.globalAlpha = 1;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+    };
+
+    const loop = (now: number) => {
+      raf = requestAnimationFrame(loop);
+      // The drift eases toward the scroll position, a little behind it.
+      target = readTarget();
+      const dt = Math.min(0.1, (now - lastNow) / 1000);
+      lastNow = now;
+      const moving = Math.abs(target - shift) > 0.25;
+      if (moving) shift += (target - shift) * (1 - Math.exp(-dt / FOLLOW));
+      else shift = target;
+      // Full rate while moving, so the drift stays smooth; otherwise 30 fps.
+      if (!moving && now - last < 1000 / FPS) return;
+      last = now;
+      draw(now);
+    };
+    const play = () => {
+      cancelAnimationFrame(raf);
+      if (reduceMotion.matches || document.hidden) {
+        target = shift = readTarget();
+        draw(null);
+        return;
+      }
+      lastNow = performance.now();
+      raf = requestAnimationFrame(loop);
+    };
+    const refresh = () => {
+      layout();
+      play();
+    };
+
+    let resizeTimer = 0;
+    const onResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(refresh, 150);
+    };
+    const themeObserver = new MutationObserver(refresh);
+    themeObserver.observe(document.documentElement, { attributeFilter: ['data-theme'] });
+    const darkQuery = matchMedia('(prefers-color-scheme: dark)');
+    window.addEventListener('resize', onResize);
+    document.addEventListener('visibilitychange', play);
+    darkQuery.addEventListener('change', refresh);
+    reduceMotion.addEventListener('change', play);
+
+    // Leaving the homepage: stop the loop and drop every listener.
+    document.addEventListener(
+      'astro:before-swap',
+      () => {
+        cancelAnimationFrame(raf);
+        clearTimeout(resizeTimer);
+        themeObserver.disconnect();
+        window.removeEventListener('resize', onResize);
+        document.removeEventListener('visibilitychange', play);
+        darkQuery.removeEventListener('change', refresh);
+        reduceMotion.removeEventListener('change', play);
+      },
+      { once: true },
+    );
+
+    target = shift = readTarget();
+    refresh();
+    root.classList.add('is-ready');
+  };
+
+  document.addEventListener('astro:page-load', setup);
+</script>
+
+<style>
+  .led-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1.2s var(--ease-out);
+  }
+  .led-bg.is-ready {
+    opacity: 1;
+  }
+  canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+</style>

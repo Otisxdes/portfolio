@@ -1,0 +1,468 @@
+---
+/* Homepage background: one continuous tile wall with gradients over it.
+
+   The mosaic from src/data/tile-wall.ts repeats edge to edge over the whole
+   page in greys, barely visible. Colour only ever comes as gradients laid
+   over the tiles, in the tile palette (cobalt, turquoise, ivory):
+   - a faint, slow drift, so the wall is never completely still;
+   - the trail the cursor paints: a soft, fluid streak (dim cobalt at the
+     tail, bright at the head) that blurs a little and fades in about a
+     second. On touch screens, dragging or tapping paints it.
+   Inside the colour the grout stays a little darker, so the tile grid shows
+   through the gradient like ribbed glass.
+
+   How the trail works: a small offscreen texture remembers recent strokes.
+   Every frame it is faded and softened slightly, and the cursor's latest
+   movement is stamped onto it. The wall shader then reads it as "how much
+   colour goes here".
+
+   - Pattern, tile size, brush, fade: src/data/tile-wall.ts
+   - Colours and strengths: --wall-* tokens in tokens.css
+   - Behind the text column everything is calmer, with a soft edge.
+   - Reduced motion: still wall and drift, no trail. Paused while hidden.
+   - Decorative only: hidden from screen readers, never takes clicks. */
+---
+
+<div class="tile-wall" data-tile-wall aria-hidden="true">
+  <canvas data-tile-wall-canvas></canvas>
+</div>
+
+<script>
+  import { tileWall } from '../data/tile-wall';
+
+  const COLUMN_DIM = 0.4; // resting wall and drift behind the text, relative
+  const COLUMN_TRAIL = 0.65; // trail behind the text, relative
+  const FEATHER = 80; // css px: soft edge of that dimming
+  const TRAIL_SCALE = 3; // trail texture is this many css px per texel
+  const FOLLOW = 0.35; // how quickly the brush catches the cursor (per frame)
+  const CODES: Record<string, number> = { G: 0, M: 1, H: 2, C: 3 };
+
+  const VERT = `
+    attribute vec2 aPos;
+    void main() { gl_Position = vec4(aPos, 0.0, 1.0); }
+  `;
+
+  // Trail update: fade and soften what's there, stamp the newest stroke.
+  const TRAIL_FRAG = `
+    precision highp float;
+    uniform sampler2D uPrev;
+    uniform vec2 uRes;
+    uniform vec2 uA;
+    uniform vec2 uB;
+    uniform float uBrush;
+    uniform float uStrength;
+    uniform float uDecay;
+
+    float segment(vec2 p, vec2 a, vec2 b) {
+      vec2 pa = p - a, ba = b - a;
+      float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-4), 0.0, 1.0);
+      return length(pa - ba * h);
+    }
+
+    void main() {
+      vec2 uv = gl_FragCoord.xy / uRes;
+      vec2 px = 1.0 / uRes;
+      float prev = texture2D(uPrev, uv).r * 0.6
+        + (texture2D(uPrev, uv + vec2(px.x, 0.0)).r + texture2D(uPrev, uv - vec2(px.x, 0.0)).r
+         + texture2D(uPrev, uv + vec2(0.0, px.y)).r + texture2D(uPrev, uv - vec2(0.0, px.y)).r) * 0.1;
+      float v = max(0.0, prev * uDecay - 1.5 / 255.0);
+      float d = segment(gl_FragCoord.xy, uA, uB);
+      v = min(1.0, v + exp(-(d * d) / (uBrush * uBrush)) * uStrength);
+      gl_FragColor = vec4(v, 0.0, 0.0, 1.0);
+    }
+  `;
+
+  // The wall itself.
+  const WALL_FRAG = `
+    precision highp float;
+    uniform vec2 uRes;
+    uniform float uPitch;
+    uniform float uGap;
+    uniform float uTime;
+    uniform vec2 uColumn;
+    uniform float uFeather;
+    uniform float uColumnDim;
+    uniform float uColumnTrail;
+    uniform sampler2D uPattern;
+    uniform float uN;
+    uniform sampler2D uRamp;
+    uniform sampler2D uNeutral;
+    uniform sampler2D uTrail;
+    uniform vec4 uClassPos;
+    uniform float uWallAlpha;
+    uniform float uAmbient;
+    uniform float uTrailAlpha;
+
+    float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    vec3 ramp(float t) { return texture2D(uRamp, vec2(clamp(t, 0.0, 1.0), 0.5)).rgb; }
+    vec3 neutral(float t) { return texture2D(uNeutral, vec2(clamp(t, 0.0, 1.0), 0.5)).rgb; }
+    float blob(vec2 p, vec2 c, float r) { vec2 d = p - c; return exp(-dot(d, d) / (r * r)); }
+
+    void main() {
+      vec2 frag = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y); // top-left origin
+      vec2 tile = floor(frag / uPitch);
+      vec2 local = fract(frag / uPitch);
+      vec2 center = (tile + 0.5) * uPitch;
+      float h = hash(tile);
+
+      // Grout between tiles.
+      float g = uGap * 0.5;
+      vec2 inside = step(vec2(g), local) * step(local, vec2(1.0 - g));
+      float tileMask = inside.x * inside.y;
+
+      // Which part of the mosaic this tile is.
+      float cls = floor(texture2D(uPattern, (mod(tile, uN) + 0.5) / uN).r * 3.0 + 0.5);
+      float pos = cls < 0.5 ? uClassPos.x : cls < 1.5 ? uClassPos.y : cls < 2.5 ? uClassPos.z : uClassPos.w;
+      float weight = cls < 0.5 ? 0.35 : cls < 1.5 ? 1.0 : cls < 2.5 ? 0.8 : 1.0;
+      float glaze = (h - 0.5) * 0.06;
+
+      // Keep the reading column calm, with a soft edge.
+      float outside = max(uColumn.x - center.x, center.x - uColumn.y);
+      float open = smoothstep(0.0, uFeather, outside);
+      float dim = mix(uColumnDim, 1.0, open);
+
+      // 1. The resting tiles, in grey.
+      float wallA = uWallAlpha * weight * dim * tileMask;
+      vec3 col = neutral(pos + glaze) * wallA;
+      float a = wallA;
+
+      // 2. Colour over the tiles: a slow drift plus the cursor trail.
+      vec2 q = frag / uRes.y; // square units
+      float aspect = uRes.x / uRes.y;
+      float drift = blob(q, vec2(aspect * (0.22 + 0.12 * sin(uTime * 0.05)), 0.95 + 0.08 * sin(uTime * 0.07)), 0.55)
+                  + 0.8 * blob(q, vec2(aspect * (0.8 + 0.1 * cos(uTime * 0.04)), 0.15 + 0.1 * cos(uTime * 0.06)), 0.45);
+      float trail = texture2D(uTrail, gl_FragCoord.xy / uRes).r;
+      float trailA = smoothstep(0.02, 0.7, trail) * uTrailAlpha * mix(uColumnTrail, 1.0, open);
+      float colourA = clamp(drift * uAmbient * dim + trailA, 0.0, 1.0);
+      // Tail of the trail sits low on the ramp, its head high; the drift low.
+      float t = 0.22 + trail * 0.75 + (pos - 0.45) * 0.12 + glaze;
+      // Grout stays darker inside the colour, so the grid shows through.
+      float through = mix(0.55, 1.0, tileMask);
+      col = ramp(t) * colourA * through + col * (1.0 - colourA);
+      a = colourA * through + a * (1.0 - colourA);
+
+      gl_FragColor = vec4(col, a);
+    }
+  `;
+
+  const setup = () => {
+    const root = document.querySelector<HTMLElement>('[data-tile-wall]');
+    const canvas = document.querySelector<HTMLCanvasElement>('[data-tile-wall-canvas]');
+    if (!root || !canvas) return;
+    const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: false });
+    if (!gl) return; // no WebGL: the page simply has no wall
+
+    const build = (frag: string) => {
+      const p = gl.createProgram()!;
+      for (const [type, src] of [
+        [gl.VERTEX_SHADER, VERT],
+        [gl.FRAGMENT_SHADER, frag],
+      ] as const) {
+        const s = gl.createShader(type)!;
+        gl.shaderSource(s, src);
+        gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.warn('[tile-wall]', gl.getShaderInfoLog(s));
+        gl.attachShader(p, s);
+      }
+      gl.linkProgram(p);
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) console.warn('[tile-wall]', gl.getProgramInfoLog(p));
+      return p;
+    };
+    const wall = build(WALL_FRAG);
+    const trailProg = build(TRAIL_FRAG);
+
+    // One triangle that covers the screen, shared by both programs.
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const use = (p: WebGLProgram) => {
+      gl.useProgram(p);
+      const loc = gl.getAttribLocation(p, 'aPos');
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    };
+    const W = (name: string) => gl.getUniformLocation(wall, name);
+    const T = (name: string) => gl.getUniformLocation(trailProg, name);
+
+    const texture = (unit: number, filter: number) => {
+      const t = gl.createTexture()!;
+      gl.activeTexture(gl.TEXTURE0 + unit);
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+      return t;
+    };
+
+    // Unit 0: the pattern, one texel per tile.
+    const n = tileWall.pattern.length;
+    const codes = new Uint8Array(n * n);
+    tileWall.pattern.forEach((row, y) => {
+      for (let x = 0; x < n; x++) codes[y * n + x] = (CODES[row[x]] ?? 0) * 85;
+    });
+    texture(0, gl.NEAREST);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, n, n, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, codes);
+
+    // Units 1 and 2: colour ramps (palette, greys), from tokens.
+    const rampTex = texture(1, gl.LINEAR);
+    const neutralTex = texture(2, gl.LINEAR);
+    const rampCanvas = document.createElement('canvas');
+    rampCanvas.width = 256;
+    rampCanvas.height = 1;
+    const rampCtx = rampCanvas.getContext('2d')!;
+    const uploadRamp = (unit: number, tex: WebGLTexture, list: string) => {
+      const stops = list.split(',').map((s) => s.trim()).filter(Boolean);
+      const grad = rampCtx.createLinearGradient(0, 0, 256, 0);
+      stops.forEach((c, i) => grad.addColorStop(stops.length > 1 ? i / (stops.length - 1) : 0, c));
+      rampCtx.clearRect(0, 0, 256, 1);
+      rampCtx.fillStyle = grad;
+      rampCtx.fillRect(0, 0, 256, 1);
+      gl.activeTexture(gl.TEXTURE0 + unit);
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, rampCanvas);
+    };
+
+    // Units 3 and 4: the trail, two textures that take turns (read one,
+    // write the other).
+    let trailW = 1;
+    let trailH = 1;
+    const trailTex = [texture(3, gl.LINEAR), texture(4, gl.LINEAR)];
+    const fbo = trailTex.map((t) => {
+      const f = gl.createFramebuffer()!;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+      return f;
+    });
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    let read = 0;
+    const sizeTrail = () => {
+      trailW = Math.max(1, Math.ceil(window.innerWidth / TRAIL_SCALE));
+      trailH = Math.max(1, Math.ceil(window.innerHeight / TRAIL_SCALE));
+      trailTex.forEach((t, i) => {
+        gl.activeTexture(gl.TEXTURE3 + i);
+        gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, trailW, trailH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      });
+    };
+
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    let dpr = 1;
+    let raf = 0;
+    let last = 0;
+    let t0 = performance.now();
+    const pointer = { x: 0, y: 0, on: false };
+    const brush = { x: 0, y: 0, px: 0, py: 0, ready: false };
+    let splash = 0; // a tap: one stamp
+
+    const layout = () => {
+      const css = getComputedStyle(document.documentElement);
+      const get = (k: string) => css.getPropertyValue(k).trim();
+      const num = (k: string, d: number) => {
+        const v = parseFloat(get(k));
+        return Number.isFinite(v) ? v : d;
+      };
+      uploadRamp(1, rampTex, get('--wall-ramp'));
+      uploadRamp(2, neutralTex, get('--wall-neutral') || get('--wall-ramp'));
+
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      canvas.width = Math.round(vw * dpr);
+      canvas.height = Math.round(vh * dpr);
+      sizeTrail();
+
+      let left = vw / 2;
+      let right = vw / 2;
+      const main = document.querySelector('main');
+      if (main) {
+        const r = main.getBoundingClientRect();
+        const cs = getComputedStyle(main);
+        left = r.left + (parseFloat(cs.paddingLeft) || 0);
+        right = r.right - (parseFloat(cs.paddingRight) || 0);
+      }
+
+      use(wall);
+      const pos = get('--wall-class-pos').split(',').map((s) => parseFloat(s));
+      gl.uniform4f(W('uClassPos'), pos[0] ?? 0.2, pos[1] ?? 0.7, pos[2] ?? 0.45, pos[3] ?? 0.9);
+      gl.uniform1f(W('uWallAlpha'), num('--wall-alpha', 0.14));
+      gl.uniform1f(W('uAmbient'), num('--wall-ambient', 0.1));
+      gl.uniform1f(W('uTrailAlpha'), num('--wall-trail-alpha', 0.85));
+      gl.uniform2f(W('uRes'), canvas.width, canvas.height);
+      gl.uniform1f(W('uPitch'), Math.round((vw < 600 ? tileWall.pitchSmall : tileWall.pitch) * dpr));
+      gl.uniform1f(W('uGap'), tileWall.gap);
+      gl.uniform2f(W('uColumn'), left * dpr, right * dpr);
+      gl.uniform1f(W('uFeather'), FEATHER * dpr);
+      gl.uniform1f(W('uColumnDim'), COLUMN_DIM);
+      gl.uniform1f(W('uColumnTrail'), COLUMN_TRAIL);
+      gl.uniform1i(W('uPattern'), 0);
+      gl.uniform1f(W('uN'), n);
+      gl.uniform1i(W('uRamp'), 1);
+      gl.uniform1i(W('uNeutral'), 2);
+
+      use(trailProg);
+      gl.uniform2f(T('uRes'), trailW, trailH);
+      gl.uniform1f(T('uBrush'), tileWall.brush / TRAIL_SCALE);
+    };
+
+    // Screen (css px, top-left) → trail texels (bottom-left).
+    const toTrail = (x: number, y: number) => [x / TRAIL_SCALE, (window.innerHeight - y) / TRAIL_SCALE];
+
+    const render = (now: number) => {
+      const still = reduceMotion.matches;
+      const dt = last ? Math.min(100, now - last) : 16.7;
+      last = now;
+
+      // Move the brush toward the cursor; its stroke this frame is the
+      // segment from where it was to where it is now.
+      let strength = 0;
+      if (!still && (pointer.on || splash)) {
+        if (!brush.ready) {
+          brush.x = brush.px = pointer.x;
+          brush.y = brush.py = pointer.y;
+          brush.ready = true;
+        }
+        brush.px = brush.x;
+        brush.py = brush.y;
+        brush.x += (pointer.x - brush.x) * FOLLOW;
+        brush.y += (pointer.y - brush.y) * FOLLOW;
+        const moved = Math.hypot(brush.x - brush.px, brush.y - brush.py);
+        strength = Math.min(1, moved / 14) * 0.8;
+        if (splash) {
+          strength = 0.9;
+          splash = 0;
+        }
+      }
+
+      // 1. Update the trail.
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo[1 - read]);
+      gl.viewport(0, 0, trailW, trailH);
+      use(trailProg);
+      gl.activeTexture(gl.TEXTURE3 + read);
+      gl.uniform1i(T('uPrev'), 3 + read);
+      const [ax, ay] = toTrail(brush.px, brush.py);
+      const [bx, by] = toTrail(brush.x, brush.y);
+      gl.uniform2f(T('uA'), ax, ay);
+      gl.uniform2f(T('uB'), bx, by);
+      gl.uniform1f(T('uStrength'), strength);
+      gl.uniform1f(T('uDecay'), Math.pow(tileWall.fade, dt / 16.7));
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      read = 1 - read;
+
+      // 2. Draw the wall, reading the fresh trail.
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      use(wall);
+      gl.uniform1i(W('uTrail'), 3 + read);
+      gl.uniform1f(W('uTime'), still ? 0 : (now - t0) / 1000);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    };
+
+    const loop = (now: number) => {
+      render(now);
+      raf = requestAnimationFrame(loop);
+    };
+    const play = () => {
+      cancelAnimationFrame(raf);
+      last = 0;
+      if (document.hidden) return;
+      if (reduceMotion.matches) {
+        render(performance.now());
+        return;
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    const refresh = () => {
+      layout();
+      play();
+    };
+
+    const onMove = (e: PointerEvent) => {
+      pointer.x = e.clientX;
+      pointer.y = e.clientY;
+      pointer.on = true;
+    };
+    const onLeave = () => {
+      pointer.on = false;
+      brush.ready = false;
+    };
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse') return;
+      pointer.x = e.clientX;
+      pointer.y = e.clientY;
+      brush.ready = false;
+      splash = 1;
+    };
+    const onUp = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse') onLeave();
+    };
+
+    let resizeTimer = 0;
+    const onResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(refresh, 150);
+    };
+    const themeObserver = new MutationObserver(refresh);
+    themeObserver.observe(document.documentElement, { attributeFilter: ['data-theme'] });
+    const darkQuery = matchMedia('(prefers-color-scheme: dark)');
+    window.addEventListener('resize', onResize);
+    window.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('pointerdown', onDown, { passive: true });
+    window.addEventListener('pointerup', onUp, { passive: true });
+    window.addEventListener('pointercancel', onUp, { passive: true });
+    document.documentElement.addEventListener('mouseleave', onLeave);
+    document.addEventListener('visibilitychange', play);
+    darkQuery.addEventListener('change', refresh);
+    reduceMotion.addEventListener('change', play);
+
+    // Leaving the homepage: stop, drop listeners, free the GPU.
+    document.addEventListener(
+      'astro:before-swap',
+      () => {
+        cancelAnimationFrame(raf);
+        clearTimeout(resizeTimer);
+        themeObserver.disconnect();
+        window.removeEventListener('resize', onResize);
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerdown', onDown);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
+        document.documentElement.removeEventListener('mouseleave', onLeave);
+        document.removeEventListener('visibilitychange', play);
+        darkQuery.removeEventListener('change', refresh);
+        reduceMotion.removeEventListener('change', play);
+        gl.getExtension('WEBGL_lose_context')?.loseContext();
+      },
+      { once: true },
+    );
+
+    t0 = performance.now();
+    refresh();
+    root.classList.add('is-ready');
+  };
+
+  document.addEventListener('astro:page-load', setup);
+</script>
+
+<style>
+  .tile-wall {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1.2s var(--ease-out);
+  }
+  .tile-wall.is-ready {
+    opacity: 1;
+  }
+  canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+</style>

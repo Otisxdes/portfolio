@@ -2,12 +2,12 @@
 import Base from '../layouts/Base.astro';
 import Section from '../components/Section.astro';
 import ProjectRow from '../components/ProjectRow.astro';
-import AsciiBackground from '../components/AsciiBackground.astro';
+import LedOrnaments from '../components/LedOrnaments.astro';
 import { projects, experience, socials, site } from '../data/site';
 ---
 
 <Base>
-  <AsciiBackground />
+  <LedOrnaments />
 
   <div class="intro" data-reveal-group>
     <p class="lead" data-reveal>
@@ -40,9 +40,11 @@ import { projects, experience, socials, site } from '../data/site';
       {
         experience.map((job) => (
           <li class="job" data-reveal>
-            <span>{job.org}</span>
-            <span class="muted">{job.role}</span>
-            {job.period && <span class="label period">{job.period}</span>}
+            <div class="job-row">
+              <span>{job.org}</span>
+              <span class="muted">{job.role}</span>
+              {job.period && <span class="label period">{job.period}</span>}
+            </div>
           </li>
         ))
       }
@@ -86,18 +88,18 @@ import { projects, experience, socials, site } from '../data/site';
 
   .rows {
     padding: 0;
-    border-bottom: 1px solid var(--color-border);
   }
 
   .job {
     list-style: none;
+  }
+  .job-row {
     display: grid;
     grid-template-columns: 1fr auto;
     gap: 0 var(--space-4);
     padding-block: var(--space-3);
-    border-top: 1px solid var(--color-border);
   }
-  .job .period {
+  .job-row .period {
     grid-column: 2;
     grid-row: 1 / span 2;
     align-self: center;
@@ -107,5 +109,6 @@ import { projects, experience, socials, site } from '../data/site';
   .contact {
     display: grid;
     gap: var(--space-3);
+    padding-top: var(--space-4);
   }
 </style>
