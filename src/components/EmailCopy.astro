@@ -1,0 +1,140 @@
+---
+/* The email address as a mailto link, with a small copy button beside it.
+   mailto only works when the visitor has a mail app set up, so the copy
+   button is the reliable path: one click puts the address on the
+   clipboard, the icon turns into a tick and "Copied" shows briefly. */
+interface Props {
+  email: string;
+}
+
+const { email } = Astro.props;
+---
+
+<span class="email">
+  <a href={`mailto:${email}`}>{email}</a>
+  <button class="copy" type="button" data-copy-email={email} aria-label="Copy email address" title="Copy email address">
+    <svg class="icon icon-copy" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="5.5" y="5.5" width="8" height="8" rx="1.5"></rect>
+      <path d="M10.5 3.5v-.5a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.5"></path>
+    </svg>
+    <svg class="icon icon-done" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M3 8.5l3.2 3L13 4.5"></path>
+    </svg>
+  </button>
+  <span class="copied label" role="status" aria-live="polite"></span>
+</span>
+
+<script>
+  /* Bind on every page load: with client-side navigation, page scripts run
+     once, so the button is looked up again each time the homepage shows. */
+  const RESET = 1800; // ms the "Copied" state stays
+
+  const copy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Older browsers / insecure contexts: fall back to a hidden textarea.
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    }
+  };
+
+  document.addEventListener('astro:page-load', () => {
+    document.querySelectorAll<HTMLButtonElement>('[data-copy-email]').forEach((btn) => {
+      const status = btn.parentElement?.querySelector<HTMLElement>('.copied');
+      let timer = 0;
+      btn.addEventListener('click', async () => {
+        const ok = await copy(btn.dataset.copyEmail ?? '');
+        if (!status) return;
+        status.textContent = ok ? 'Copied' : 'Copy failed';
+        btn.classList.toggle('is-done', ok);
+        status.classList.add('is-visible');
+        clearTimeout(timer);
+        timer = window.setTimeout(() => {
+          btn.classList.remove('is-done');
+          status.classList.remove('is-visible');
+        }, RESET);
+      });
+    });
+  });
+</script>
+
+<style>
+  .email {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    flex-wrap: wrap;
+  }
+
+  .copy {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    transition: color var(--duration-fast) var(--ease-out),
+      background-color var(--duration-fast) var(--ease-out);
+  }
+  .copy:hover,
+  .copy:focus-visible {
+    color: var(--color-text);
+    background: var(--color-surface);
+  }
+
+  .icon {
+    grid-area: 1 / 1;
+    width: 0.875rem;
+    height: 0.875rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: opacity var(--duration-fast) var(--ease-out),
+      transform var(--duration-base) var(--ease-out);
+  }
+  .icon-done {
+    opacity: 0;
+    transform: scale(0.6);
+    color: var(--color-live);
+  }
+  .copy.is-done .icon-copy {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  .copy.is-done .icon-done {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .copied {
+    color: var(--color-text-faint);
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: opacity var(--duration-base) var(--ease-out),
+      transform var(--duration-base) var(--ease-out);
+  }
+  .copied.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .icon,
+    .copied {
+      transition: opacity var(--duration-fast) linear;
+      transform: none !important;
+    }
+  }
+</style>

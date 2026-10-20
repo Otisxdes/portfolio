@@ -3,6 +3,7 @@ import Base from '../layouts/Base.astro';
 import Section from '../components/Section.astro';
 import ProjectRow from '../components/ProjectRow.astro';
 import LedOrnaments from '../components/LedOrnaments.astro';
+import EmailCopy from '../components/EmailCopy.astro';
 import { Image } from 'astro:assets';
 import portrait from '../assets/site/portrait.avif';
 import { projects, experience, socials, site } from '../data/site';
@@ -67,8 +68,10 @@ import { projects, experience, socials, site } from '../data/site';
   <Section label="contact">
     <div class="contact" data-reveal-group>
       <p data-reveal>
-        Hiring for a product design role, or building something that needs a careful eye?{' '}
-        <a href={`mailto:${site.email}`}>Email me</a>.
+        Hiring for a product design role, or building something that needs a careful eye?
+      </p>
+      <p data-reveal>
+        Email me at <EmailCopy email={site.email} />
       </p>
       <p class="muted" data-reveal>
         Elsewhere:{' '}
