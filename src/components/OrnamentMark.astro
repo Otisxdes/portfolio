@@ -17,7 +17,15 @@
      top centre clockwise; the rest is the same quarter turned 90°).
    - Timing: HOLD and MORPH, in seconds.
    - Colours and glow: --mark-* tokens in tokens.css.
-   - Reduced motion: shows the star, still, with no light. */
+   - Reduced motion: shows the star, still, with no light, no hover charge.
+
+   Hover charge: hovering the name sends one brief electric pulse through
+   the outline (about 0.85s, once per hover). Two charges leave the top
+   centre in opposite directions and meet at the bottom, trailing tiny
+   sparks; the inner motif flashes as they meet, and the outline brightens
+   and blooms, then settles. It rides on the same morphing path, so it
+   always follows whichever motif is showing. A fine noise displacement,
+   reseeded every few frames, gives the pulse its electric jitter. */
 
 type Pt = [number, number];
 
@@ -148,10 +156,22 @@ const keySplines = Array(times.length - 1).fill('0.65 0 0.35 1').join(';');
         keySplines={keySplines}
       />
     </path>
+    <!-- Electric jitter for the hover charge. -->
+    <filter id="mark-zap" x="-25%" y="-25%" width="150%" height="150%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="1" data-zap-noise />
+      <feDisplacementMap in="SourceGraphic" scale="1.3" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
   </defs>
   <use href="#mark-inner" class="inner" />
   <use href="#mark-outer" class="line" />
   <use href="#mark-outer" class="light" />
+  <g class="charge" filter="url(#mark-zap)">
+    <use href="#mark-inner" class="charge-inner" data-charge="inner" />
+    <use href="#mark-outer" class="sparks" data-charge="sparks-cw" />
+    <use href="#mark-outer" class="sparks" data-charge="sparks-ccw" />
+    <use href="#mark-outer" class="pulse" data-charge="cw" />
+    <use href="#mark-outer" class="pulse" data-charge="ccw" />
+  </g>
 </svg>
 
 <script>
@@ -169,6 +189,47 @@ const keySplines = Array(times.length - 1).fill('0.65 0 0.35 1').join(';');
   apply();
   query.addEventListener('change', apply);
 
+  /* Hover charge: one pulse per hover entry. Uses the Web Animations API on
+     the charge layers; the outline's brighten/bloom is a CSS class. */
+  const DUR = 850; // ms
+  const trigger = mark?.closest('a') ?? mark;
+  const part = (name: string) => mark?.querySelector<SVGUseElement>(`[data-charge="${name}"]`);
+  const noise = mark?.querySelector('[data-zap-noise]');
+  let reseed = 0;
+  let settle = 0;
+
+  const charge = () => {
+    if (!mark || query.matches) return;
+    const timing = { duration: DUR, easing: 'linear', fill: 'none' } as const;
+    // A flicker that rises fast, stutters, and dies away.
+    const flicker = { opacity: [0, 1, 0.55, 1, 0.75, 1, 0], offset: [0, 0.06, 0.14, 0.22, 0.5, 0.7, 1] };
+    // Each pulse is a short dash centred on the top (offset 6 of 100) that
+    // runs half the outline, ending centred on the bottom.
+    const run = { easing: 'cubic-bezier(0.25, 0.7, 0.3, 1)' };
+    part('cw')?.animate({ ...flicker, strokeDashoffset: ['6', '-44'] }, { ...timing, ...run });
+    part('ccw')?.animate({ ...flicker, strokeDashoffset: ['6', '56'] }, { ...timing, ...run });
+    // Sparks: a small cluster of dots trailing just behind each pulse.
+    const sparks = { opacity: [0, 0.9, 0.4, 0.85, 0.3, 0], offset: [0, 0.1, 0.25, 0.4, 0.7, 1] };
+    part('sparks-cw')?.animate({ ...sparks, strokeDashoffset: ['12', '-36'] }, { ...timing, ...run });
+    part('sparks-ccw')?.animate({ ...sparks, strokeDashoffset: ['-5', '44'] }, { ...timing, ...run });
+    part('inner')?.animate({ opacity: [0, 0, 0.9, 0.35, 0], offset: [0, 0.4, 0.55, 0.7, 1] }, timing);
+
+    // Brighten and bloom, then ease back.
+    mark.classList.add('charged');
+    clearTimeout(settle);
+    settle = window.setTimeout(() => mark.classList.remove('charged'), DUR * 0.55);
+
+    // Reseed the jitter every few frames while the charge runs.
+    clearInterval(reseed);
+    const start = performance.now();
+    reseed = window.setInterval(() => {
+      noise?.setAttribute('seed', String(Math.floor(Math.random() * 1000)));
+      if (performance.now() - start > DUR) clearInterval(reseed);
+    }, 45);
+  };
+  trigger?.addEventListener('pointerenter', (e) => {
+    if ((e as PointerEvent).pointerType !== 'touch') charge();
+  });
 </script>
 
 <style>
@@ -181,10 +242,12 @@ const keySplines = Array(times.length - 1).fill('0.65 0 0.35 1').join(';');
     stroke-linejoin: round;
     stroke-linecap: round;
     filter: drop-shadow(0 0 var(--mark-glow-size) var(--mark-glow));
+    transition: filter 0.45s ease-out;
   }
   .line {
     stroke: var(--mark-line);
     stroke-width: 1.15;
+    transition: stroke 0.45s ease-out;
   }
   .inner {
     stroke: var(--mark-line);
@@ -202,6 +265,35 @@ const keySplines = Array(times.length - 1).fill('0.65 0 0.35 1').join(';');
     to {
       stroke-dashoffset: -100;
     }
+  }
+
+  /* Hover charge layers: invisible until the script animates them. */
+  .charge use {
+    opacity: 0;
+    stroke: var(--mark-surge);
+  }
+  .pulse {
+    stroke-width: 1.6;
+    stroke-dasharray: 12 88;
+  }
+  .sparks {
+    stroke-width: 1.5;
+    /* A cluster of four tiny round dots, then nothing for the rest of the
+       outline (the pattern adds up to its length of 100). */
+    stroke-dasharray: 0.01 2.2 0.01 2.6 0.01 1.9 0.01 93.26;
+  }
+  .charge-inner {
+    stroke-width: 1.2;
+  }
+  /* While charged: the outline lights up and blooms, quickly; it settles
+     back slower (the transitions above). */
+  .mark.charged {
+    filter: drop-shadow(0 0 0.6px var(--mark-surge)) drop-shadow(0 0 var(--mark-bloom-size) var(--mark-bloom));
+    transition-duration: 0.12s;
+  }
+  .mark.charged .line {
+    stroke: var(--mark-light);
+    transition-duration: 0.12s;
   }
 
   @media (prefers-reduced-motion: reduce) {
