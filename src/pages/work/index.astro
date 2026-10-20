@@ -2,10 +2,13 @@
 import Base from '../../layouts/Base.astro';
 import ProjectRow from '../../components/ProjectRow.astro';
 import LedSeparator from '../../components/LedSeparator.astro';
+import LedOrnaments from '../../components/LedOrnaments.astro';
 import { projects } from '../../data/site';
 ---
 
 <Base title="Work" description="Selected product design work by Otabek Mukhsinov.">
+  <LedOrnaments />
+
   <h1 class="label" data-reveal>selected work</h1>
   <!-- Rows for now; this becomes a video-thumbnail grid once each project has a loop. -->
   <LedSeparator />

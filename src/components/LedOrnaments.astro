@@ -1,5 +1,5 @@
 ---
-/* Homepage background: LED-tile ornaments in the side margins.
+/* Page background (home, work, experiments): LED-tile ornaments in the side margins.
 
    Each ornament is a PNG (public/ornaments/) sampled into a grid of square
    tiles. An ornament rests as a faint shape; every so often a band of light
@@ -470,7 +470,7 @@
     darkQuery.addEventListener('change', refresh);
     reduceMotion.addEventListener('change', play);
 
-    // Leaving the homepage: stop the loop and drop every listener.
+    // Leaving the page: stop the loop and drop every listener.
     document.addEventListener(
       'astro:before-swap',
       () => {
