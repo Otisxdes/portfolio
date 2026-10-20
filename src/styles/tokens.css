@@ -8,24 +8,30 @@
   /* ---- Type ---------------------------------------------------------- */
   --font-sans: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
-  /* Reserved: display face for the Central Asian layer (falls back to sans). */
-  --font-display: var(--font-sans);
+  /* The whole site is set in the mono. To go back to a sans for text,
+     point this at var(--font-sans) (and restore the sizes below). */
+  --font-body: var(--font-mono);
+  /* Reserved: display face for the Central Asian layer (falls back to body). */
+  --font-display: var(--font-body);
 
-  /* Small, calm scale. Body text is the hero, not giant headlines. */
+  /* Small, calm scale. Body text is the hero, not giant headlines.
+     Tuned for a monospace: its letters are wider than a sans, so body and
+     headings sit a step smaller, with a little more line height. */
   --text-xs: 0.75rem;   /* 12px: metadata, labels */
   --text-sm: 0.8125rem; /* 13px: secondary */
-  --text-base: 0.9375rem; /* 15px: body */
-  --text-lg: 1.125rem;  /* 18px: intro */
-  --text-xl: 1.5rem;    /* 24px: chapter headings */
+  --text-base: 0.875rem; /* 14px: body */
+  --text-lg: 1.0625rem; /* 17px: intro */
+  --text-xl: 1.375rem;  /* 22px: chapter headings */
   /* Fluid sizes grow with the viewport between a min and max. */
-  --text-stat: clamp(1.25rem, 0.8rem + 2vw, 2rem);           /* 20→32px: impact numbers */
-  --text-display: clamp(1.875rem, 1.3rem + 2.4vw, 2.75rem);  /* 30→44px: case study headline */
+  --text-stat: clamp(1.125rem, 0.85rem + 1.2vw, 1.5rem);       /* 18→24px: impact numbers (mono is wide) */
+  --text-display: clamp(1.625rem, 1.2rem + 2vw, 2.375rem);     /* 26→38px: case study headline */
 
-  --leading-display: 1.1;
-  --leading-tight: 1.3;
-  --leading-body: 1.55;
-  --tracking-label: 0.02em;
-  --tracking-tight: -0.02em; /* large type reads better slightly tighter */
+  --leading-display: 1.15;
+  --leading-tight: 1.4;
+  --leading-body: 1.65;
+  --tracking-body: -0.01em; /* the mono sits a touch tighter at text sizes */
+  --tracking-label: 0.01em;
+  --tracking-tight: -0.03em; /* large type reads better slightly tighter */
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
