@@ -1,0 +1,213 @@
+---
+/* The animated mark beside the name in the header.
+
+   Three motifs from the glazed-tile reference, drawn as thin outlines:
+   - the eight-point star (the tile's centre), with a small diamond inside;
+   - the stepped lozenge (the green stepped diamonds), with a small cross;
+   - the stepped cross (the dark blue frame), with a tiny star.
+   One shows at a time; the lines morph from one into the next and back,
+   in a slow loop. A short band of light travels along the outline.
+
+   How the morph works: every outline is resampled here, at build time, to
+   the same number of evenly spaced points, all starting at the top centre
+   and running clockwise. Paths with matching points can be interpolated,
+   so SVG's own <animate> morphs them; no script runs while it plays.
+
+   - Shapes: the `quarter` lists below (one quarter of each shape, from the
+     top centre clockwise; the rest is the same quarter turned 90°).
+   - Timing: HOLD and MORPH, in seconds.
+   - Colours and glow: --mark-* tokens in tokens.css.
+   - Reduced motion: shows the star, still, with no light. */
+
+type Pt = [number, number];
+
+const HOLD = 3; // s each motif stays
+const MORPH = 1.6; // s each transformation takes
+const OUTER_N = 160; // points per outline (enough that corners stay crisp)
+const INNER_N = 64;
+
+// One quarter → the whole shape (4-fold symmetry, clockwise on screen).
+const whole = (quarter: Pt[]): Pt[] => {
+  const pts: Pt[] = [];
+  for (let k = 0; k < 4; k++)
+    for (const [x, y] of quarter) {
+      let p: Pt = [x, y];
+      for (let i = 0; i < k; i++) p = [-p[1], p[0]];
+      pts.push(p);
+    }
+  return pts;
+};
+
+// Evenly spaced points along a closed polygon, starting at its first vertex.
+const resample = (poly: Pt[], n: number): Pt[] => {
+  const segs = poly.map((p, i) => {
+    const q = poly[(i + 1) % poly.length];
+    return { p, q, len: Math.hypot(q[0] - p[0], q[1] - p[1]) };
+  });
+  const total = segs.reduce((s, g) => s + g.len, 0);
+  const out: Pt[] = [];
+  let si = 0;
+  let acc = 0;
+  for (let j = 0; j < n; j++) {
+    const t = (j / n) * total;
+    while (acc + segs[si].len < t) acc += segs[si++].len;
+    const { p, q, len } = segs[si];
+    const f = len ? (t - acc) / len : 0;
+    out.push([p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f]);
+  }
+  return out;
+};
+
+const d = (pts: Pt[]) =>
+  'M' + pts.map(([x, y]) => `${+x.toFixed(2)} ${+y.toFixed(2)}`).join('L') + 'Z';
+
+const polar = (r: number, deg: number): Pt => {
+  const a = (deg * Math.PI) / 180;
+  return [r * Math.cos(a), r * Math.sin(a)];
+};
+
+// Eight-point star: tips at radius 10.5, inner corners a little further in.
+const star = (R: number, r: number): Pt[] =>
+  [0, 1, 2, 3].map((i) => polar(i % 2 ? r : R, -90 + i * 22.5));
+
+// Stepped lozenge: a diamond built from square steps of size h.
+const stepped = (h: number, k: number): Pt[] => {
+  const R = k * h + h / 2;
+  const pts: Pt[] = [[0, -R]];
+  let x = h / 2;
+  let y = -R;
+  pts.push([x, y]);
+  for (let i = 0; i < k; i++) {
+    y += h;
+    pts.push([x, y]);
+    x += h;
+    pts.push([x, y]);
+  }
+  return pts;
+};
+
+const motifs = [
+  {
+    outer: star(10.5, 7.6),
+    inner: [[0, -3]] as Pt[], // diamond
+  },
+  {
+    outer: stepped(2.2, 4),
+    inner: [[0, -3.4], [1, -3.4], [1, -1], [3.4, -1]] as Pt[], // cross
+  },
+  {
+    outer: [[0, -10], [2.6, -10], [2.6, -6], [6, -6], [6, -2.6], [10, -2.6]] as Pt[], // stepped cross
+    inner: star(3.6, 2.6), // tiny star
+  },
+].map((m) => ({
+  outer: d(resample(whole(m.outer), OUTER_N)),
+  inner: d(resample(whole(m.inner), INNER_N)),
+}));
+
+// Keyframes: hold A, morph to B, hold B, morph to C, hold C, morph to A.
+const dur = motifs.length * (HOLD + MORPH);
+const times: number[] = [];
+const seq = (key: 'outer' | 'inner') => {
+  const values: string[] = [];
+  times.length = 0;
+  motifs.forEach((m, i) => {
+    values.push(m[key], m[key]);
+    times.push((i * (HOLD + MORPH)) / dur, (i * (HOLD + MORPH) + HOLD) / dur);
+  });
+  values.push(motifs[0][key]);
+  times.push(1);
+  return values.join(';');
+};
+const outerValues = seq('outer');
+const innerValues = seq('inner');
+const keyTimes = times.map((t) => +t.toFixed(4)).join(';');
+const keySplines = Array(times.length - 1).fill('0.65 0 0.35 1').join(';');
+---
+
+<svg class="mark" viewBox="-12 -12 24 24" aria-hidden="true" focusable="false" data-mark>
+  <defs>
+    <path id="mark-outer" d={motifs[0].outer} pathLength="100">
+      <animate
+        attributeName="d"
+        dur={`${dur}s`}
+        repeatCount="indefinite"
+        values={outerValues}
+        keyTimes={keyTimes}
+        calcMode="spline"
+        keySplines={keySplines}
+      />
+    </path>
+    <path id="mark-inner" d={motifs[0].inner}>
+      <animate
+        attributeName="d"
+        dur={`${dur}s`}
+        repeatCount="indefinite"
+        values={innerValues}
+        keyTimes={keyTimes}
+        calcMode="spline"
+        keySplines={keySplines}
+      />
+    </path>
+  </defs>
+  <use href="#mark-inner" class="inner" />
+  <use href="#mark-outer" class="line" />
+  <use href="#mark-outer" class="light" />
+</svg>
+
+<script>
+  /* SVG animations ignore prefers-reduced-motion, so pause them here: the
+     mark then rests on its first motif. */
+  const mark = document.querySelector<SVGSVGElement>('[data-mark]');
+  const query = matchMedia('(prefers-reduced-motion: reduce)');
+  const apply = () => {
+    if (!mark) return;
+    if (query.matches) {
+      mark.pauseAnimations();
+      mark.setCurrentTime(0);
+    } else mark.unpauseAnimations();
+  };
+  apply();
+  query.addEventListener('change', apply);
+
+</script>
+
+<style>
+  .mark {
+    width: 1.1em;
+    height: 1.1em;
+    flex: none;
+    overflow: visible;
+    fill: none;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 var(--mark-glow-size) var(--mark-glow));
+  }
+  .line {
+    stroke: var(--mark-line);
+    stroke-width: 1.15;
+  }
+  .inner {
+    stroke: var(--mark-line);
+    stroke-width: 1;
+    opacity: 0.7;
+  }
+  /* The light: a short bright dash running along the outline. */
+  .light {
+    stroke: var(--mark-light);
+    stroke-width: 1.4;
+    stroke-dasharray: 9 91;
+    animation: mark-run 7s linear infinite;
+  }
+  @keyframes mark-run {
+    to {
+      stroke-dashoffset: -100;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .light {
+      animation: none;
+      opacity: 0;
+    }
+  }
+</style>

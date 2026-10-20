@@ -112,6 +112,17 @@
   --wall-ambient: 0.1; /* the slow drifting gradient, 0 = none */
   --wall-trail-alpha: 0.85; /* the cursor trail at its strongest */
 
+  /* Header mark (components/OrnamentMark.astro). No colours of its own:
+     it borrows the LED ornament palette above, in the same roles.
+     Light page: the outline in the second cobalt glaze (turquoise alone is
+     too faint as a thin line on white), the travelling light in deep cobalt
+     (on light, "lit" is the darker tile), with a
+     faint turquoise halo. */
+  --mark-line: var(--led-lit-alt);
+  --mark-light: var(--led-lit);
+  --mark-glow: color-mix(in srgb, var(--led-off) 30%, transparent);
+  --mark-glow-size: 1px;
+
   color-scheme: light;
 }
 
@@ -143,6 +154,12 @@
   --wall-alpha: 0.14;
   --wall-ambient: 0.1;
   --wall-trail-alpha: 0.9;
+  /* Dark page: the outline in the ornaments' resting blue, the light in
+     their lit turquoise. */
+  --mark-line: var(--led-off);
+  --mark-light: var(--led-lit);
+  --mark-glow: color-mix(in srgb, var(--led-lit) 45%, transparent);
+  --mark-glow-size: 2px;
   color-scheme: dark;
 }
 
@@ -172,6 +189,12 @@
     --wall-alpha: 0.14;
     --wall-ambient: 0.1;
     --wall-trail-alpha: 0.9;
+    /* Dark page: the outline in the ornaments' resting blue, the light in
+       their lit turquoise. */
+    --mark-line: var(--led-off);
+    --mark-light: var(--led-lit);
+    --mark-glow: color-mix(in srgb, var(--led-lit) 45%, transparent);
+    --mark-glow-size: 2px;
     color-scheme: dark;
   }
 }

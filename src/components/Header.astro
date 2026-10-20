@@ -3,11 +3,15 @@
    the ticking clock) alive across page transitions instead of re-rendering. */
 import { nav, site } from '../data/site';
 import ThemeToggle from './ThemeToggle.astro';
+import OrnamentMark from './OrnamentMark.astro';
 ---
 
 <header class="header" transition:persist="site-header">
   <div class="inner">
-    <a href="/" class="name" aria-label={`${site.name}, home`}>{site.shortName}</a>
+    <a href="/" class="name" aria-label={`${site.name}, home`}>
+      <OrnamentMark />
+      {site.shortName}
+    </a>
 
     <p class="clock label" aria-label={`Local time in ${site.location.city}`}>
       <time data-clock data-tz={site.location.timeZone}>--:--:--</time>
@@ -86,6 +90,9 @@ import ThemeToggle from './ThemeToggle.astro';
   }
 
   .name {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45em;
     font-weight: var(--weight-medium);
     text-decoration: none;
   }
