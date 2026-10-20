@@ -11,7 +11,7 @@ export const site = {
     'Otabek Mukhsinov, product designer in Dubai who defines the real problem first, then designs for revenue and conversion.',
   url: 'https://www.otisxdes.com',
   email: 'otabek.mukhsinov@gmail.com',
-  location: { city: 'Dubai', timeZone: 'Asia/Dubai', zoneLabel: 'GST' },
+  location: { city: 'Dubai', country: 'UAE', timeZone: 'Asia/Dubai', zoneLabel: 'GST' },
 };
 
 export const nav = [
