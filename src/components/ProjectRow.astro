@@ -52,6 +52,61 @@ const Tag = project.hasCaseStudy ? 'a' : 'div';
     font-weight: var(--weight-medium);
   }
 
+  /* Linked rows: on hover (or keyboard focus) a rounded surface fades in
+     behind the row, with light coming in from its right edge. Both layers
+     are absolutely positioned and bleed a little past the text, so the row
+     itself never changes size or moves. Colours: --row-* in tokens.css. */
+  .linked {
+    position: relative;
+    isolation: isolate;
+    --bleed: min(var(--space-4), calc(var(--gutter) - var(--space-1)));
+  }
+  .linked::before,
+  .linked::after {
+    content: '';
+    position: absolute;
+    inset: 0 calc(var(--bleed) * -1);
+    z-index: -1;
+    border-radius: var(--radius-lg);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration-row) var(--ease-out),
+      transform var(--duration-row) var(--ease-out);
+  }
+  /* The surface: a soft gradient with a hairline border. */
+  .linked::before {
+    background: linear-gradient(100deg, var(--row-surface-a), var(--row-surface-b));
+    box-shadow:
+      inset 0 0 0 1px var(--row-border),
+      inset 0 1px 0 var(--row-border-top);
+  }
+  /* The light: a glow pooled at the right edge plus a thin bright seam
+     right at the edge. It grows out from the right as it fades in. */
+  .linked::after {
+    background:
+      radial-gradient(4px 42% at calc(100% - 1px) 50%, var(--row-edge), transparent),
+      radial-gradient(38% 120% at 100% 50%, var(--row-glow), transparent 72%);
+    transform: scaleX(0.6);
+    transform-origin: right center;
+  }
+  .linked:hover::before,
+  .linked:focus-visible::before {
+    opacity: 1;
+  }
+  .linked:hover::after,
+  .linked:focus-visible::after {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  .linked:focus-visible {
+    outline: none;
+  }
+  .linked:focus-visible::before {
+    box-shadow:
+      inset 0 0 0 1px var(--color-focus),
+      inset 0 1px 0 var(--row-border-top);
+  }
+
   /* Linked rows: arrow appears and nudges on hover. */
   .linked .title::after {
     content: '→';
@@ -60,7 +115,8 @@ const Tag = project.hasCaseStudy ? 'a' : 'div';
     transition: transform var(--duration-base) var(--ease-out),
       color var(--duration-base) var(--ease-out);
   }
-  .linked:hover .title::after {
+  .linked:hover .title::after,
+  .linked:focus-visible .title::after {
     transform: translateX(3px);
     color: var(--color-text);
   }
@@ -100,6 +156,9 @@ const Tag = project.hasCaseStudy ? 'a' : 'div';
   @media (prefers-reduced-motion: reduce) {
     .pulse::after {
       animation: none;
+    }
+    .linked::after {
+      transform: none;
     }
   }
 

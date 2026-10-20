@@ -49,9 +49,11 @@
   /* ---- Shape & motion ----------------------------------------------- */
   --radius-sm: 6px;
   --radius-md: 10px;
+  --radius-lg: 14px;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-fast: 150ms;
   --duration-base: 300ms;
+  --duration-row: 420ms; /* case study row hover */
 
   /* ---- Color: light (default) --------------------------------------- */
   --color-bg: #fafaf9;
@@ -112,6 +114,15 @@
   --wall-ambient: 0.1; /* the slow drifting gradient, 0 = none */
   --wall-trail-alpha: 0.85; /* the cursor trail at its strongest */
 
+  /* Case study row hover (components/ProjectRow.astro). The glow uses the
+     LED ornament blues, softened for a light page. */
+  --row-surface-a: #f7f7f5;
+  --row-surface-b: #fbfbfa;
+  --row-border: rgb(0 0 0 / 0.07);
+  --row-border-top: rgb(255 255 255 / 0.9);
+  --row-glow: color-mix(in srgb, var(--led-off) 22%, transparent);
+  --row-edge: color-mix(in srgb, var(--led-lit-alt) 70%, transparent);
+
   /* Header mark (components/OrnamentMark.astro). No colours of its own:
      it borrows the LED ornament palette above, in the same roles.
      Light page: the outline in the second cobalt glaze (turquoise alone is
@@ -157,6 +168,13 @@
   --wall-alpha: 0.14;
   --wall-ambient: 0.1;
   --wall-trail-alpha: 0.9;
+  /* Row hover: charcoal surface, cyan light from the right edge. */
+  --row-surface-a: #1c1c1e;
+  --row-surface-b: #232427;
+  --row-border: rgb(255 255 255 / 0.07);
+  --row-border-top: rgb(255 255 255 / 0.05);
+  --row-glow: color-mix(in srgb, var(--led-lit) 28%, transparent);
+  --row-edge: color-mix(in srgb, var(--led-lit) 90%, transparent);
   /* Dark page: the outline in the ornaments' resting blue, the light in
      their lit turquoise; the charge runs a whiter turquoise. */
   --mark-line: var(--led-off);
@@ -195,6 +213,13 @@
     --wall-alpha: 0.14;
     --wall-ambient: 0.1;
     --wall-trail-alpha: 0.9;
+    /* Row hover: charcoal surface, cyan light from the right edge. */
+    --row-surface-a: #1c1c1e;
+    --row-surface-b: #232427;
+    --row-border: rgb(255 255 255 / 0.07);
+    --row-border-top: rgb(255 255 255 / 0.05);
+    --row-glow: color-mix(in srgb, var(--led-lit) 28%, transparent);
+    --row-edge: color-mix(in srgb, var(--led-lit) 90%, transparent);
     /* Dark page: the outline in the ornaments' resting blue, the light in
        their lit turquoise; the charge runs a whiter turquoise. */
     --mark-line: var(--led-off);
