@@ -3,6 +3,8 @@ import Base from '../layouts/Base.astro';
 import Section from '../components/Section.astro';
 import ProjectRow from '../components/ProjectRow.astro';
 import LedOrnaments from '../components/LedOrnaments.astro';
+import { Image } from 'astro:assets';
+import portrait from '../assets/site/portrait.avif';
 import { projects, experience, socials, site } from '../data/site';
 ---
 
@@ -10,6 +12,17 @@ import { projects, experience, socials, site } from '../data/site';
   <LedOrnaments />
 
   <div class="intro" data-reveal-group>
+    <Image
+      class="portrait"
+      src={portrait}
+      alt={site.name}
+      width={72}
+      height={72}
+      densities={[1, 2, 3]}
+      loading="eager"
+      data-reveal
+    />
+
     <p class="lead" data-reveal>
       I'm Otabek, a product designer who defines the real problem first, then designs for revenue and
       conversion.
@@ -78,6 +91,21 @@ import { projects, experience, socials, site } from '../data/site';
   .intro {
     display: grid;
     gap: var(--space-4);
+  }
+
+  /* Square photo: 72px on desktop, 56px on mobile. The intro's own gap
+     (--space-4, 16px) sets the spacing to the first line. */
+  .intro :global(.portrait) {
+    width: 72px;
+    height: 72px;
+    border-radius: var(--radius-portrait);
+    object-fit: cover;
+  }
+  @media (max-width: 34rem) {
+    .intro :global(.portrait) {
+      width: 56px;
+      height: 56px;
+    }
   }
 
   .lead {
