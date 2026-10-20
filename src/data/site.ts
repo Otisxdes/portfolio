@@ -15,9 +15,9 @@ export const site = {
 };
 
 export const nav = [
-  { href: '/', label: './' },
-  { href: '/work', label: './work' },
-  { href: '/experiments', label: './experiments' },
+  { href: '/', label: 'home' },
+  { href: '/work', label: 'work' },
+  { href: '/experiments', label: 'experiments' },
 ];
 
 export const socials = [
