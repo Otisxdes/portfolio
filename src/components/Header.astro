@@ -77,7 +77,15 @@ import OrnamentMark from './OrnamentMark.astro';
     z-index: 50;
     background: color-mix(in srgb, var(--color-bg) 35%, transparent);
     backdrop-filter: blur(8px) saturate(1.4);
-    -webkit-backdrop-filter: blur(8px) saturate(1.4);
+  }
+  /* Older Safari only knows the prefixed property. It lives in its own
+     block because the CSS minifier merges two equivalent declarations in
+     one rule and keeps just one of them, which dropped the blur in Chrome
+     on the live site. */
+  @supports (-webkit-backdrop-filter: none) {
+    .header {
+      -webkit-backdrop-filter: blur(8px) saturate(1.4);
+    }
   }
 
   .inner {
