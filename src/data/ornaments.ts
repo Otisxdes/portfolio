@@ -36,7 +36,8 @@ export type Ornament = {
    `src`, `cols`, `angle`, `period` and `delay` work as for any ornament
    (use the same `cols` as the main one so the tiles match it exactly).
    `y` is the top of its box and `t` how far across the margin, as above.
-   - reps      1 to 1.5: how many repetitions of the pattern show
+   - reps      how far the patch reaches, in repetitions of the pattern
+               (it dissolves from the centre, so ~2.3 shows about two whole)
    - ox, oy    tiles: which part of the lattice is cropped (varies the look)
    - scale     tile size relative to the main ornaments (0.7 to 1)
    - drift     scroll drift relative to the main ornaments (1 = same speed)
@@ -65,22 +66,30 @@ export type Fragment = {
    - seed     change it to get a different coastline */
 export type Extend = { rx: number; ry: number; rough?: number; grain?: number; soft?: number; seed?: number };
 
+/* One geometry across the page: every shape is the rosette. Variety comes
+   from patch size and coastline (seed), crop, tile scale, light direction
+   and timing, so no two read as copies. */
 export const ornaments: Ornament[] = [
   {
-    src: '/ornaments/diamond-cross.png', cols: 13, side: 'left', y: 0.14, t: 0.35, angle: 25, period: 15, delay: 0,
-    extend: { rx: 25, ry: 20, rough: 0.95, grain: 0.065, soft: 0.38, seed: 3 },
+    src: '/ornaments/rosette.png', cols: 15, side: 'left', y: 0.14, t: 0.35, angle: 25, period: 15, delay: 0,
+    extend: { rx: 21, ry: 17, rough: 0.95, grain: 0.065, soft: 0.38, seed: 3 },
   },
   {
     src: '/ornaments/rosette.png', cols: 15, side: 'right', y: 0.70, t: 0.55, angle: 150, period: 17, delay: 0.35,
-    extend: { rx: 28, ry: 23, rough: 0.95, grain: 0.065, soft: 0.38, seed: 11 },
+    extend: { rx: 23, ry: 19, rough: 0.95, grain: 0.065, soft: 0.38, seed: 11 },
   },
 ];
 
-/* Small scattered fragments. Deliberately uneven: three on the left, three on
-   the right, at different heights, sizes and distances from the screen edge,
-   each cropping a different part of the lattice. The two main ornaments
-   above stay where they are, and these keep clear of them. */
-export const fragments: Ornament[] = [];
+/* Small fragments, one per side, each about two connected repetitions of
+   the motif. Placed opposite their side's main ornament (low on the left,
+   high on the right), so the composition stays uneven but balanced.
+   Fainter and slightly smaller than the main ones, so they stay secondary. */
+export const fragments: Ornament[] = [
+  { src: '/ornaments/rosette.png', cols: 15, side: 'left', y: 0.8, t: 0.55, angle: 160, period: 21, delay: 0.6,
+    fragment: { reps: 2.3, ox: 6, oy: 3, scale: 0.8, drift: 0.9, strength: 0.45, seed: 34 } },
+  { src: '/ornaments/rosette.png', cols: 15, side: 'right', y: 0.07, t: 0.4, angle: 120, period: 18, delay: 0.8,
+    fragment: { reps: 2.4, ox: 3, oy: 9, scale: 0.9, drift: 0.95, strength: 0.5, seed: 57 } },
+];
 
 /* Option B (components/LedField.astro): the same ornaments scattered over the
    whole page at very low strength; hovering one wakes it. Only `src`, `cols`
