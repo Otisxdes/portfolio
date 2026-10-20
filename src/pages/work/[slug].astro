@@ -156,18 +156,26 @@ const sizesFor = (columns = 1) =>
     font-size: var(--text-sm);
   }
 
-  /* The numbers strip: value first, label under. */
+  /* The numbers strip: value first, label under. Each stat is as wide as
+     its own text, and the leftover space is shared equally between them,
+     so the visible gaps match whatever the numbers say. */
   .outcome {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--space-4);
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-5);
     margin-top: var(--space-6);
     padding-block: var(--space-4);
   }
   .outcome div {
+    flex: 0 1 auto;
     display: flex;
     flex-direction: column-reverse; /* label is first in markup, shown under the number */
     justify-content: flex-end;
+  }
+  .outcome .label {
+    max-width: 20ch; /* long labels wrap instead of widening their stat */
+    line-height: var(--leading-tight);
+    margin-top: var(--space-1);
   }
   .outcome .value {
     font-size: var(--text-stat);
