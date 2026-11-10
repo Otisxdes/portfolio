@@ -1,7 +1,8 @@
 ---
 /* Light/dark toggle. Default follows the system; a click saves an explicit
    choice. The label names the theme you'll switch TO.
-   The new theme is revealed through a diamond growing from the button
+   The new theme arrives as a wave of tiles spreading out from the button,
+   with the ragged, stepped edge of the LED ornaments' light
    (styles: "Theme switch" in global.css). */
 ---
 
@@ -26,7 +27,78 @@
   if (btn) {
     update(btn);
     const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
-    const DURATION = 650; // ms the diamond takes to cover the screen
+    const DURATION = 900; // ms the wave takes to cross the screen
+    const TILE = 14; // css px per tile
+    const RES = 3; // mask pixels per tile (keeps tile edges crisp when scaled up)
+    const FRAMES = 40; // steps in the wave (it moves in steps, like an LED panel)
+    const BAND = 0.16; // width of the wave's edge, as a share of the distance
+    const JITTER = 0.14; // per-tile scatter: how ragged the edge is
+    const STEPS = 4; // brightness levels a tile passes through as it flips
+
+    // Repeatable per-tile noise, so the edge keeps its character.
+    const hash = (x: number, y: number) => {
+      const v = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+      return v - Math.floor(v);
+    };
+
+    /* The wave, as a short film of masks. Each frame is a small image with
+       one square per tile: solid where the new theme already shows, clear
+       where the old one still does, and a few in-between levels on the
+       ragged edge. The browser plays them over the new theme's snapshot.
+       Frames only depend on the window size and where the button is, so
+       they are drawn once and reused for every later switch. */
+    let cached: { key: string; keyframes: Keyframe[] } | null = null;
+    const waveFrames = (ox: number, oy: number) => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const key = `${vw}x${vh}@${Math.round(ox)},${Math.round(oy)}`;
+      if (cached?.key === key) return cached;
+
+      const cols = Math.ceil(vw / TILE);
+      const rows = Math.ceil(vh / TILE);
+      const canvas = document.createElement('canvas');
+      canvas.width = cols * RES;
+      canvas.height = rows * RES;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = '#fff';
+
+      // How far each tile is from the button (0 = at it, 1 = the farthest
+      // corner), nudged by its own noise.
+      const far = Math.hypot(Math.max(ox, vw - ox), Math.max(oy, vh - oy));
+      const dist = new Float32Array(cols * rows);
+      for (let row = 0; row < rows; row++)
+        for (let col = 0; col < cols; col++) {
+          const d = Math.hypot((col + 0.5) * TILE - ox, (row + 0.5) * TILE - oy) / far;
+          dist[row * cols + col] = d + (hash(col, row) - 0.5) * JITTER;
+        }
+
+      const size = `${cols * TILE}px ${rows * TILE}px`;
+      const keyframes: Keyframe[] = [];
+      for (let f = 0; f < FRAMES; f++) {
+        // Ease in and out, so the wave gathers pace and settles.
+        const t = f / (FRAMES - 1);
+        const eased = t * t * (3 - 2 * t);
+        const front = -JITTER / 2 + eased * (1 + JITTER + BAND);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let row = 0; row < rows; row++)
+          for (let col = 0; col < cols; col++) {
+            const level = Math.min(1, Math.max(0, (front - dist[row * cols + col]) / BAND));
+            const a = f === FRAMES - 1 ? 1 : Math.round(level * STEPS) / STEPS;
+            if (a <= 0) continue;
+            ctx.globalAlpha = a;
+            ctx.fillRect(col * RES, row * RES, RES, RES);
+          }
+        keyframes.push({
+          maskImage: `url(${canvas.toDataURL('image/png')})`,
+          maskSize: size,
+          maskPosition: '0 0',
+          maskRepeat: 'no-repeat',
+          offset: t,
+        });
+      }
+      cached = { key, keyframes };
+      return cached;
+    };
     btn.addEventListener('click', () => {
       const next = isDark() ? 'light' : 'dark';
       const root = document.documentElement;
@@ -47,25 +119,14 @@
       const transition = document.startViewTransition(apply);
       transition.ready
         .then(() => {
-          // The diamond grows from the centre of the button until it just
-          // covers the farthest corner of the screen (no overshoot, so the
-          // edge moves at an even pace the whole way).
           const r = btn.getBoundingClientRect();
-          const x = r.left + r.width / 2;
-          const y = r.top + r.height / 2;
-          const reach =
-            Math.max(x, window.innerWidth - x) + Math.max(y, window.innerHeight - y);
-          const diamond = (d: number) =>
-            `polygon(${x}px ${y - d}px, ${x + d}px ${y}px, ${x}px ${y + d}px, ${x - d}px ${y}px)`;
-          root.animate(
-            { clipPath: [diamond(0), diamond(reach)] },
-            {
-              duration: DURATION,
-              easing: 'cubic-bezier(0.45, 0, 0.25, 1)',
-              fill: 'both',
-              pseudoElement: '::view-transition-new(root)',
-            },
-          );
+          const frames = waveFrames(r.left + r.width / 2, r.top + r.height / 2);
+          root.animate(frames.keyframes, {
+            duration: DURATION,
+            easing: 'linear', // the wave's pace is shaped in waveFrames
+            fill: 'both',
+            pseudoElement: '::view-transition-new(root)',
+          });
         })
         // If the browser skips the animation (e.g. the tab is in the
         // background), the theme has still switched: nothing to report.

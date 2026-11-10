@@ -129,20 +129,23 @@ html.lenis body {
   transform: translateY(8px);
 }
 
-/* ---- Theme switch: lozenge reveal ----------------------------------- */
-/* Clicking the theme toggle (components/ThemeToggle.astro) reveals the new
-   theme through a diamond that grows from the button, like the lozenge in
-   the ornaments. Uses the browser's View Transitions; where they aren't
-   supported, or for reduced motion, the theme just switches.
-   The diamond itself is animated from the toggle's script (it needs the
+/* ---- Theme switch: tile wave --------------------------------------- */
+/* Clicking the theme toggle (components/ThemeToggle.astro) brings the new
+   theme in as a wave of tiles spreading from the button. Uses the browser's
+   View Transitions; where they aren't supported, or for reduced motion,
+   the theme just switches.
+   The wave itself is animated from the toggle's script (it needs the
    button's position and the screen size). Here we only switch off the
-   browser's default cross-fade, and pause colour transitions for the
-   moment of the switch: otherwise the new theme would still be fading
-   its colours inside the growing diamond, which reads as a smear. */
+   browser's default cross-fade, keep the tiles' edges sharp, and pause
+   colour transitions for the moment of the switch: otherwise the new
+   theme would still be fading its colours behind the wave. */
 html.theme-switch::view-transition-old(root),
 html.theme-switch::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
+}
+html.theme-switch::view-transition-new(root) {
+  image-rendering: pixelated;
 }
 html.theme-switch *,
 html.theme-switch *::before,
