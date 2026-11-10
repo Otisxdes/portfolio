@@ -4,6 +4,9 @@
 import Base from '../../layouts/Base.astro';
 import CaseVisual from '../../components/CaseVisual.astro';
 import Carousel from '../../components/Carousel.astro';
+import ProjectRow from '../../components/ProjectRow.astro';
+import RowPreviews from '../../components/RowPreviews.astro';
+import LedSeparator from '../../components/LedSeparator.astro';
 import { projects } from '../../data/site';
 import { caseStudies } from '../../data/case-studies';
 
@@ -23,6 +26,9 @@ export function getStaticPaths() {
 const { project, study, next } = Astro.props;
 
 // Image width hints: full-width media vs. one cell of a 2- or 3-column grid.
+// Chapter counter above each chapter heading: "01 / 05".
+const two = (n: number) => String(n).padStart(2, '0');
+
 const sizesFor = (columns = 1) =>
   columns === 1 ? '(min-width: 64rem) 64rem, 100vw' : `(min-width: 64rem) ${Math.round(64 / columns)}rem, 50vw`;
 ---
@@ -31,6 +37,7 @@ const sizesFor = (columns = 1) =>
   title={project.title}
   description={study ? study.headline : `${project.title}: ${project.outcome}.`}
 >
+  <RowPreviews />
   <article>
     <header class="head" data-reveal-group>
       <p class="label" data-reveal>{project.title}</p>
@@ -54,7 +61,7 @@ const sizesFor = (columns = 1) =>
             {study.outcome.map((stat) => (
               <div data-reveal>
                 <dt class="label">{stat.label}</dt>
-                <dd class="value">{stat.value}</dd>
+                <dd class="value" data-count>{stat.value}</dd>
               </div>
             ))}
           </dl>
@@ -69,9 +76,13 @@ const sizesFor = (columns = 1) =>
             ))}
           </div>
 
-          {study.chapters.map((chapter) => (
+          {study.chapters.map((chapter, i) => (
             <section class="chapter">
               <div class="prose" data-reveal-group>
+                <p class="label chapter-no" data-reveal aria-hidden="true">
+                  <span class="tile"></span>
+                  {two(i + 1)} / {two(study.chapters.length)}
+                </p>
                 <h2 data-reveal>{chapter.heading}</h2>
                 {chapter.body.map((p) => (
                   <p data-reveal>{p}</p>
@@ -112,16 +123,19 @@ const sizesFor = (columns = 1) =>
       )
     }
 
-    <nav class="end" aria-label="More work" data-reveal>
+    <nav class="end" aria-label="More work">
       {
         next && (
-          <a class="next" href={`/work/${next.slug}`}>
-            <span class="label">Next project</span>
-            <span class="next-title">{next.title}</span>
-          </a>
+          <>
+            <p class="label" data-reveal>next project</p>
+            <LedSeparator />
+            <ul class="rows" data-reveal-group>
+              <ProjectRow project={next} />
+            </ul>
+          </>
         )
       }
-      <a class="back label" href="/">← Back to home</a>
+      <a class="back label" href="/" data-reveal>← Back to home</a>
     </nav>
   </article>
 </Base>
@@ -242,6 +256,21 @@ const sizesFor = (columns = 1) =>
   .chapter .prose {
     margin-top: 0;
   }
+  /* Chapter counter: a lit tile, then "01 / 05". */
+  .chapter-no {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--color-text-faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .chapter-no .tile {
+    width: 4px;
+    height: 4px;
+    background: var(--led-lit);
+    box-shadow: 0 0 calc(var(--led-glow) * 6px) var(--led-lit);
+    transform: rotate(45deg);
+  }
   h2 {
     font-size: var(--text-xl);
     font-weight: var(--weight-semibold);
@@ -250,29 +279,19 @@ const sizesFor = (columns = 1) =>
     margin-bottom: var(--space-2);
   }
 
+  /* End of the page: the next project as a row (same hover as the lists
+     on the home and work pages), then the way back. */
   .end {
-    display: grid;
-    gap: var(--space-5);
     margin-top: var(--space-9);
   }
-  .next {
-    display: grid;
-    gap: var(--space-1);
-    text-decoration: none;
+  .end > .label {
+    margin-bottom: var(--space-2);
   }
-  .next-title {
-    font-size: var(--text-lg);
-    font-weight: var(--weight-medium);
-  }
-  .next-title::after {
-    content: ' →';
-    color: var(--color-text-faint);
-    transition: color var(--duration-base) var(--ease-out);
-  }
-  .next:hover .next-title::after {
-    color: var(--color-text);
+  .end .rows {
+    padding: 0;
   }
   .back {
-    justify-self: start;
+    display: inline-block;
+    margin-top: var(--space-5);
   }
 </style>

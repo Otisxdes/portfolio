@@ -1,6 +1,13 @@
 ---
 /* Header: clock + nav + theme toggle. `transition:persist` keeps it (and
-   the ticking clock) alive across page transitions instead of re-rendering. */
+   the ticking clock) alive across page transitions instead of re-rendering.
+
+   Two small LED details, in the ornaments' colours (--led-* tokens):
+   - Nav marker: a lit diamond tile under the current page's link. It slides
+     to the new link when the page changes.
+   - Scroll tiles: a row of tiles along the header's bottom edge that light
+     up from the left as you scroll down. Hidden on pages too short to need
+     it. Decorative only (hidden from screen readers). */
 import { nav, site } from '../data/site';
 import ThemeToggle from './ThemeToggle.astro';
 import OrnamentMark from './OrnamentMark.astro';
@@ -29,11 +36,13 @@ import OrnamentMark from './OrnamentMark.astro';
             </li>
           ))
         }
+        <li class="nav-mark" data-nav-mark aria-hidden="true"></li>
       </ul>
     </nav>
 
     <ThemeToggle />
   </div>
+  <div class="scroll-tiles" data-scroll-tiles aria-hidden="true"><span></span></div>
 </header>
 
 <script>
@@ -58,6 +67,24 @@ import OrnamentMark from './OrnamentMark.astro';
 
   /* The header persists across pages, so the "current page" marker has to
      be updated by script after each navigation. */
+  const mark = document.querySelector<HTMLElement>('[data-nav-mark]');
+  // Slide the diamond under the current link (or hide it if there is none).
+  const placeMark = () => {
+    if (!mark) return;
+    const current = document.querySelector<HTMLAnchorElement>('[data-nav-link][aria-current]');
+    if (!current) {
+      mark.classList.remove('is-on');
+      return;
+    }
+    mark.style.setProperty('--x', `${current.offsetLeft + current.offsetWidth / 2}px`);
+    // First placement: appear in place instead of sliding in from the left.
+    if (!mark.classList.contains('is-on')) {
+      mark.style.transition = 'none';
+      void mark.offsetWidth;
+      mark.style.transition = '';
+    }
+    mark.classList.add('is-on');
+  };
   const markCurrent = () => {
     const path = location.pathname.replace(/\/$/, '') || '/';
     document.querySelectorAll<HTMLAnchorElement>('[data-nav-link]').forEach((a) => {
@@ -66,8 +93,39 @@ import OrnamentMark from './OrnamentMark.astro';
       if (isCurrent) a.setAttribute('aria-current', 'page');
       else a.removeAttribute('aria-current');
     });
+    placeMark();
   };
   document.addEventListener('astro:page-load', markCurrent);
+  window.addEventListener('resize', placeMark);
+  // Link widths change once the web font arrives.
+  document.fonts?.ready.then(placeMark);
+
+  /* Scroll tiles: how far down the page you are, as lit tiles. The lit
+     length snaps to whole tiles, so it steps like an LED strip. */
+  const tiles = document.querySelector<HTMLElement>('[data-scroll-tiles]');
+  if (tiles) {
+    const TILE = 4; // css px per tile, including its gap (matches the CSS)
+    const MIN_SCROLL = 500; // css px: shorter pages get no strip
+    let queued = false;
+    const update = () => {
+      queued = false;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      tiles.classList.toggle('is-on', max > MIN_SCROLL);
+      const share = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+      const lit = Math.round((share * tiles.clientWidth) / TILE) * TILE;
+      tiles.style.setProperty('--lit', `${lit}px`);
+    };
+    const request = () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(update);
+    };
+    window.addEventListener('scroll', request, { passive: true });
+    window.addEventListener('resize', request);
+    document.addEventListener('astro:page-load', request);
+    // Images loading in make the page taller.
+    new ResizeObserver(request).observe(document.body);
+  }
 </script>
 
 <style>
@@ -132,6 +190,72 @@ import OrnamentMark from './OrnamentMark.astro';
   nav a:hover,
   nav a[aria-current='page'] {
     color: var(--color-text);
+  }
+  nav a {
+    transition: color var(--duration-base) var(--ease-out);
+  }
+
+  /* The diamond under the current link: one tile, turned 45°. */
+  nav ul {
+    position: relative;
+  }
+  .nav-mark {
+    position: absolute;
+    left: 0;
+    bottom: -7px;
+    width: 4px;
+    height: 4px;
+    margin-left: -2px;
+    background: var(--led-lit);
+    box-shadow: 0 0 calc(var(--led-glow) * 6px) var(--led-lit);
+    opacity: 0;
+    transform: translateX(var(--x, 0)) rotate(45deg) scale(0.4);
+    transition: transform 520ms var(--ease-out),
+      opacity var(--duration-base) var(--ease-out);
+    pointer-events: none;
+  }
+  .nav-mark.is-on {
+    opacity: 1;
+    transform: translateX(var(--x, 0)) rotate(45deg) scale(1);
+  }
+
+  /* Scroll tiles. Two layers of the same tile pattern: the whole strip at
+     rest, and the lit share on top (its width is set by the script). */
+  .scroll-tiles {
+    --tile: 3px;
+    --pitch: 4px; /* tile + gap */
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    width: min(var(--measure), 100% - var(--gutter) * 2);
+    /* A whole number of tiles, so the strip never ends on a cut one. */
+    width: round(down, min(var(--measure), 100% - var(--gutter) * 2), var(--pitch));
+    height: var(--tile);
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity var(--duration-base) var(--ease-out);
+    pointer-events: none;
+  }
+  .scroll-tiles.is-on {
+    opacity: 1;
+  }
+  .scroll-tiles::before,
+  .scroll-tiles span {
+    content: '';
+    position: absolute;
+    inset: 0;
+    -webkit-mask: repeating-linear-gradient(90deg, #000 0 var(--tile), transparent var(--tile) var(--pitch));
+    mask: repeating-linear-gradient(90deg, #000 0 var(--tile), transparent var(--tile) var(--pitch));
+  }
+  .scroll-tiles::before {
+    background: var(--led-off);
+    opacity: var(--led-off-alpha);
+  }
+  .scroll-tiles span {
+    background: var(--led-lit);
+    opacity: var(--led-lit-alpha);
+    clip-path: inset(-6px calc(100% - var(--lit, 0px)) -6px 0);
+    transition: clip-path 160ms steps(4, end);
   }
 
   /* Mobile: the clock drops to its own line under the name. */

@@ -39,6 +39,9 @@ export interface Project {
   status: ProjectStatus;
   /** Case study exists yet? In-progress projects list without a link. */
   hasCaseStudy: boolean;
+  /** Image shown beside the cursor when the row is hovered: a file name
+      (no extension) from src/assets/projects/<slug>/. */
+  thumb?: string;
 }
 
 export const projects: Project[] = [
@@ -61,6 +64,7 @@ export const projects: Project[] = [
     period: '2026',
     status: 'live',
     hasCaseStudy: true,
+    thumb: 'brand-identity',
   },
   {
     slug: 'shukran-credit-card',
@@ -71,6 +75,7 @@ export const projects: Project[] = [
     period: '2024–2025',
     status: 'live',
     hasCaseStudy: true,
+    thumb: 'landing-hero',
   },
 ];
 

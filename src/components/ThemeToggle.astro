@@ -1,6 +1,8 @@
 ---
 /* Light/dark toggle. Default follows the system; a click saves an explicit
-   choice. The label names the theme you'll switch TO. */
+   choice. The label names the theme you'll switch TO.
+   The new theme is revealed through a diamond growing from the button
+   (styles: "Theme switch" in global.css). */
 ---
 
 <button class="toggle label" type="button" data-theme-toggle aria-label="Switch theme">
@@ -23,15 +25,33 @@
   const btn = document.querySelector<HTMLButtonElement>('[data-theme-toggle]');
   if (btn) {
     update(btn);
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
     btn.addEventListener('click', () => {
       const next = isDark() ? 'light' : 'dark';
-      document.documentElement.dataset.theme = next;
+      const root = document.documentElement;
+      const apply = () => {
+        root.dataset.theme = next;
+        update(btn);
+      };
       try {
         localStorage.setItem('theme', next);
       } catch (e) {
         /* storage unavailable; theme still applies for this visit */
       }
-      update(btn);
+      if (!document.startViewTransition || reduceMotion.matches) {
+        apply();
+        return;
+      }
+      // Where the diamond grows from: the centre of the button.
+      const r = btn.getBoundingClientRect();
+      root.style.setProperty('--theme-x', `${r.left + r.width / 2}px`);
+      root.style.setProperty('--theme-y', `${r.top + r.height / 2}px`);
+      root.classList.add('theme-switch');
+      const transition = document.startViewTransition(apply);
+      // If the browser skips the animation (e.g. the tab is in the
+      // background), the theme has still switched: nothing to report.
+      transition.ready.catch(() => {});
+      transition.finished.catch(() => {}).finally(() => root.classList.remove('theme-switch'));
     });
   }
 </script>

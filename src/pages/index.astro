@@ -4,6 +4,7 @@ import Section from '../components/Section.astro';
 import ProjectRow from '../components/ProjectRow.astro';
 import LedOrnaments from '../components/LedOrnaments.astro';
 import EmailCopy from '../components/EmailCopy.astro';
+import RowPreviews from '../components/RowPreviews.astro';
 import { Image } from 'astro:assets';
 import portrait from '../assets/site/portrait.avif';
 import { projects, experience, socials, site } from '../data/site';
@@ -11,18 +12,21 @@ import { projects, experience, socials, site } from '../data/site';
 
 <Base>
   <LedOrnaments />
+  <RowPreviews />
 
   <div class="intro" data-reveal-group>
-    <Image
-      class="portrait"
-      src={portrait}
-      alt={site.name}
-      width={72}
-      height={72}
-      densities={[1, 2, 3]}
-      loading="eager"
-      data-reveal
-    />
+    <!-- The frame draws four stepped tile corners around the photo. -->
+    <span class="portrait-frame" data-reveal>
+      <Image
+        class="portrait"
+        src={portrait}
+        alt={site.name}
+        width={72}
+        height={72}
+        densities={[1, 2, 3]}
+        loading="eager"
+      />
+    </span>
 
     <p class="lead" data-reveal>
       I'm Otabek, a product designer who defines the real problem first, then designs for revenue and
@@ -99,15 +103,72 @@ import { projects, experience, socials, site } from '../data/site';
   /* Square photo: 72px on desktop, 56px on mobile. The intro's own gap
      (--space-4, 16px) sets the spacing to the first line. */
   .intro :global(.portrait) {
-    width: 72px;
-    height: 72px;
+    width: var(--size);
+    height: var(--size);
     border-radius: var(--radius-portrait);
     object-fit: cover;
   }
+
+  /* Tile corners around the photo: three LED tiles per corner, stepped like
+     the ornaments' corners. They rest faint and light up on hover, one
+     diagonal pair a beat after the other. Each pseudo-element is a single
+     tile; its box-shadows draw the other tiles of its two corners. */
+  .portrait-frame {
+    --size: 72px;
+    --t: 3px; /* tile */
+    --p: 4px; /* tile + gap */
+    --out: 7px; /* how far outside the photo the corners sit */
+    --far: calc(var(--size) + var(--out) * 2 - var(--t)); /* to the opposite corner */
+    position: relative;
+    justify-self: start;
+    display: block;
+    width: var(--size);
+    height: var(--size);
+  }
+  .portrait-frame::before,
+  .portrait-frame::after {
+    content: '';
+    position: absolute;
+    top: calc(var(--out) * -1);
+    width: var(--t);
+    height: var(--t);
+    color: var(--led-off);
+    background: currentColor;
+    opacity: var(--led-off-alpha);
+    transition: color var(--duration-row) var(--ease-out),
+      opacity var(--duration-row) var(--ease-out),
+      filter var(--duration-row) var(--ease-out);
+  }
+  /* Top-left corner, and (through the shadows) bottom-right. */
+  .portrait-frame::before {
+    left: calc(var(--out) * -1);
+    box-shadow:
+      var(--p) 0 currentColor,
+      0 var(--p) currentColor,
+      var(--far) var(--far) currentColor,
+      calc(var(--far) - var(--p)) var(--far) currentColor,
+      var(--far) calc(var(--far) - var(--p)) currentColor;
+  }
+  /* Top-right corner, and bottom-left. */
+  .portrait-frame::after {
+    right: calc(var(--out) * -1);
+    box-shadow:
+      calc(var(--p) * -1) 0 currentColor,
+      0 var(--p) currentColor,
+      calc(var(--far) * -1) var(--far) currentColor,
+      calc(var(--p) - var(--far)) var(--far) currentColor,
+      calc(var(--far) * -1) calc(var(--far) - var(--p)) currentColor;
+    transition-delay: 90ms;
+  }
+  .portrait-frame:hover::before,
+  .portrait-frame:hover::after {
+    color: var(--led-lit);
+    opacity: var(--led-lit-alpha);
+    filter: drop-shadow(0 0 calc(var(--led-glow) * 4px) var(--led-lit));
+  }
   @media (max-width: 34rem) {
-    .intro :global(.portrait) {
-      width: 56px;
-      height: 56px;
+    .portrait-frame {
+      --size: 56px;
     }
   }
 

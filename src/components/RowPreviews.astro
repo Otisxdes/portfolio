@@ -1,0 +1,149 @@
+---
+/* Hover previews for project rows: hovering a linked row shows a small
+   image of that project beside the cursor, and it follows the mouse softly.
+
+   Put <RowPreviews /> once on any page that lists <ProjectRow>s. It sits
+   outside the rows on purpose: the rows are animated with a transform, and
+   a transformed parent would trap a `position: fixed` child inside it.
+
+   - Which image: `thumb` on the project in src/data/site.ts (a file name,
+     without extension, from src/assets/projects/<slug>/).
+   - Mouse and wide screens only; nothing on touch or for reduced motion.
+   - Decorative: the row's text already says everything (hidden from
+     screen readers). */
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+import { projects } from '../data/site';
+
+const images = import.meta.glob<{ default: ImageMetadata }>(
+  '/src/assets/projects/*/*.{png,jpg,jpeg,webp,avif}',
+  { eager: true }
+);
+const previews = projects
+  .filter((p) => p.hasCaseStudy && p.thumb)
+  .map((p) => {
+    const key = Object.keys(images).find((path) =>
+      new RegExp(`^/src/assets/projects/${p.slug}/${p.thumb}\\.\\w+$`).test(path)
+    );
+    return key ? { slug: p.slug, image: images[key].default } : null;
+  })
+  .filter((p): p is { slug: string; image: ImageMetadata } => p !== null);
+---
+
+<div class="row-preview" data-row-preview aria-hidden="true">
+  {
+    previews.map((p) => (
+      <Image src={p.image} alt="" width={280} densities={[1, 2]} loading="lazy" data-preview-for={p.slug} />
+    ))
+  }
+</div>
+
+<script>
+  const OFFSET_X = 28; // css px from the cursor
+  const OFFSET_Y = 20;
+  const FOLLOW = 0.16; // share of the remaining distance covered per frame
+
+  document.addEventListener('astro:page-load', () => {
+    const box = document.querySelector<HTMLElement>('[data-row-preview]');
+    const rows = document.querySelectorAll<HTMLElement>('[data-preview]');
+    const fine = matchMedia('(hover: hover) and (pointer: fine) and (min-width: 48rem)');
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    if (!box || !rows.length) return;
+
+    let x = 0;
+    let y = 0;
+    let tx = 0;
+    let ty = 0;
+    let raf = 0;
+    let open = false;
+
+    const aim = (e: PointerEvent) => {
+      // Stay on screen: flip to the cursor's left / top near the edges.
+      const w = box.offsetWidth;
+      const h = box.offsetHeight;
+      tx = e.clientX + OFFSET_X + w > window.innerWidth - 12 ? e.clientX - OFFSET_X - w : e.clientX + OFFSET_X;
+      ty = e.clientY + OFFSET_Y + h > window.innerHeight - 12 ? e.clientY - OFFSET_Y - h : e.clientY + OFFSET_Y;
+    };
+    const frame = () => {
+      x += (tx - x) * FOLLOW;
+      y += (ty - y) * FOLLOW;
+      box.style.setProperty('--x', `${x.toFixed(1)}px`);
+      box.style.setProperty('--y', `${y.toFixed(1)}px`);
+      raf = open ? requestAnimationFrame(frame) : 0;
+    };
+    const hide = () => {
+      open = false;
+      box.classList.remove('is-open');
+    };
+
+    rows.forEach((row) => {
+      const img = box.querySelector<HTMLElement>(`[data-preview-for="${row.dataset.preview}"]`);
+      if (!img) return;
+      row.addEventListener('pointerenter', (e) => {
+        if (e.pointerType !== 'mouse' || !fine.matches || reduceMotion.matches) return;
+        box.querySelectorAll('.is-current').forEach((el) => el.classList.remove('is-current'));
+        img.classList.add('is-current');
+        aim(e);
+        // Opening fresh: start at the cursor instead of gliding in from afar.
+        if (!open) {
+          x = tx;
+          y = ty;
+        }
+        open = true;
+        box.classList.add('is-open');
+        if (!raf) raf = requestAnimationFrame(frame);
+      });
+      row.addEventListener('pointermove', (e) => open && aim(e));
+      row.addEventListener('pointerleave', hide);
+    });
+
+    document.addEventListener(
+      'astro:before-swap',
+      () => {
+        cancelAnimationFrame(raf);
+        hide();
+      },
+      { once: true },
+    );
+  });
+</script>
+
+<style>
+  .row-preview {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 40;
+    width: 15rem;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    box-shadow:
+      0 0 0 1px var(--row-border),
+      0 18px 40px -18px rgb(0 0 0 / 0.45),
+      0 0 28px -10px var(--row-glow);
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(var(--x, 0), var(--y, 0)) scale(0.94);
+    transform-origin: left top;
+    transition: opacity var(--duration-base) var(--ease-out);
+  }
+  .row-preview.is-open {
+    opacity: 1;
+    transform: translate(var(--x, 0), var(--y, 0)) scale(1);
+  }
+  .row-preview :global(img) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    opacity: 0;
+    transition: opacity var(--duration-base) var(--ease-out);
+  }
+  .row-preview :global(img.is-current) {
+    opacity: 1;
+  }
+</style>

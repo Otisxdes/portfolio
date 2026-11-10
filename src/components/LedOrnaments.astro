@@ -19,6 +19,9 @@
      from the tile reference; their roles swap between dark and light).
    - Scroll: the shapes drift up at a small share of the scroll speed
      (PARALLAX), eased, so they sit slightly behind the page.
+   - Cursor: tiles near the mouse light up, with the same stepped, ragged
+     edge as the travelling light. The glow fades a moment after the mouse
+     stops. Mouse only: nothing happens on touch screens.
    - Decorative only: hidden from screen readers.
    - Reduced motion: one still frame. Paused while the tab is hidden. */
 ---
@@ -46,6 +49,9 @@
   const STEPS = 4; // brightness levels, like a PWM LED
   const PARALLAX = 0.14; // shapes drift up at this share of the scroll speed
   const FOLLOW = 0.14; // s: how softly the drift follows the scroll
+  const REACH = 110; // css px: how far from the cursor tiles light up
+  const LINGER = 1400; // ms the cursor's light stays after the mouse stops
+  const WARM = 0.3; // s: how softly that light fades in and out
 
   type Mask = { cols: number; rows: number; ink: Float32Array };
   type Cell = { col: number; row: number; w: number; h: number; p: number; fade: number };
@@ -166,6 +172,12 @@
     let shift = 0; // css px the shapes have drifted so far
     let target = 0; // css px they are heading to
     let lastNow = 0;
+    // Cursor light: where the mouse is (css px), when it last moved, and
+    // how strong its light is right now (0 to 1, eased).
+    let mouseX = -1e9;
+    let mouseY = -1e9;
+    let lastMove = -1e9;
+    let heat = 0;
 
     const readTarget = () => {
       if (reduceMotion.matches) return 0;
@@ -383,14 +395,25 @@
         const size = Math.max(1, Math.round(p.cell * (1 - GAP)));
         const inset = Math.round((p.cell - size) / 2);
         const cells = p.cells;
+        // The cursor, in this ornament's own (drifted) device px.
+        const warm = heat > 0.02;
+        const mx = mouseX * dpr - p.x;
+        const my = mouseY * dpr - p.y - Math.round(shift * p.drift * dpr);
+        const reach = REACH * dpr;
 
         // Brightness per tile: a band of light around `front`, scattered at
-        // the edge and snapped to a few steps.
+        // the edge and snapped to a few steps. The cursor adds its own pool
+        // of light, with the same scatter and steps.
         let any = false;
         for (let k = 0; k < cells.length; k++) {
           const c = cells[k];
           const d = Math.abs(front - (c.p + (c.h - 0.5) * p.jitter * 2));
-          const b = Math.round(Math.max(0, 1 - d / p.band) * STEPS) / STEPS;
+          let b = Math.round(Math.max(0, 1 - d / p.band) * STEPS) / STEPS;
+          if (warm) {
+            const near = Math.hypot((c.col + 0.5) * p.cell - mx, (c.row + 0.5) * p.cell - my) / reach;
+            const m = Math.round(Math.max(0, 1 - near - (c.h - 0.5) * 0.35) * heat * STEPS) / STEPS;
+            if (m > b) b = m;
+          }
           p.levels[k] = b;
           if (b > 0) any = true;
         }
@@ -437,6 +460,9 @@
       const moving = Math.abs(target - shift) > 0.25;
       if (moving) shift += (target - shift) * (1 - Math.exp(-dt / FOLLOW));
       else shift = target;
+      // The cursor's light warms up while the mouse moves, then cools.
+      const want = now - lastMove < LINGER ? 1 : 0;
+      heat += (want - heat) * (1 - Math.exp(-dt / WARM));
       // Full rate while moving, so the drift stays smooth; otherwise 30 fps.
       if (!moving && now - last < 1000 / FPS) return;
       last = now;
@@ -462,10 +488,17 @@
       clearTimeout(resizeTimer);
       resizeTimer = window.setTimeout(refresh, 150);
     };
+    const onMouse = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse') return;
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      lastMove = performance.now();
+    };
     const themeObserver = new MutationObserver(refresh);
     themeObserver.observe(document.documentElement, { attributeFilter: ['data-theme'] });
     const darkQuery = matchMedia('(prefers-color-scheme: dark)');
     window.addEventListener('resize', onResize);
+    window.addEventListener('pointermove', onMouse, { passive: true });
     document.addEventListener('visibilitychange', play);
     darkQuery.addEventListener('change', refresh);
     reduceMotion.addEventListener('change', play);
@@ -478,6 +511,7 @@
         clearTimeout(resizeTimer);
         themeObserver.disconnect();
         window.removeEventListener('resize', onResize);
+        window.removeEventListener('pointermove', onMouse);
         document.removeEventListener('visibilitychange', play);
         darkQuery.removeEventListener('change', refresh);
         reduceMotion.removeEventListener('change', play);

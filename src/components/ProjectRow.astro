@@ -16,6 +16,7 @@ const Tag = project.hasCaseStudy ? 'a' : 'div';
   <Tag
     class:list={['row', { linked: project.hasCaseStudy }]}
     href={project.hasCaseStudy ? `/work/${project.slug}` : undefined}
+    data-preview={project.hasCaseStudy && project.thumb ? project.slug : undefined}
   >
     <span class="title">
       {project.title}

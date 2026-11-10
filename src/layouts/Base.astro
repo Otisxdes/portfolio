@@ -67,6 +67,7 @@ const canonical = new URL(Astro.url.pathname, site.url).href;
     <script>
       import '../scripts/smooth-scroll';
       import '../scripts/reveal';
+      import '../scripts/count-up';
     </script>
   </body>
 </html>
@@ -88,6 +89,7 @@ const canonical = new URL(Astro.url.pathname, site.url).href;
   }
 
   main {
+    flex: 1; /* fills short pages, so the footer sits at the bottom */
     width: 100%;
     max-width: calc(var(--measure) + var(--gutter) * 2);
     margin-inline: auto;
