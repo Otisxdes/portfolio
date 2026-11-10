@@ -26,6 +26,7 @@
   if (btn) {
     update(btn);
     const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    const DURATION = 650; // ms the diamond takes to cover the screen
     btn.addEventListener('click', () => {
       const next = isDark() ? 'light' : 'dark';
       const root = document.documentElement;
@@ -42,15 +43,33 @@
         apply();
         return;
       }
-      // Where the diamond grows from: the centre of the button.
-      const r = btn.getBoundingClientRect();
-      root.style.setProperty('--theme-x', `${r.left + r.width / 2}px`);
-      root.style.setProperty('--theme-y', `${r.top + r.height / 2}px`);
       root.classList.add('theme-switch');
       const transition = document.startViewTransition(apply);
-      // If the browser skips the animation (e.g. the tab is in the
-      // background), the theme has still switched: nothing to report.
-      transition.ready.catch(() => {});
+      transition.ready
+        .then(() => {
+          // The diamond grows from the centre of the button until it just
+          // covers the farthest corner of the screen (no overshoot, so the
+          // edge moves at an even pace the whole way).
+          const r = btn.getBoundingClientRect();
+          const x = r.left + r.width / 2;
+          const y = r.top + r.height / 2;
+          const reach =
+            Math.max(x, window.innerWidth - x) + Math.max(y, window.innerHeight - y);
+          const diamond = (d: number) =>
+            `polygon(${x}px ${y - d}px, ${x + d}px ${y}px, ${x}px ${y + d}px, ${x - d}px ${y}px)`;
+          root.animate(
+            { clipPath: [diamond(0), diamond(reach)] },
+            {
+              duration: DURATION,
+              easing: 'cubic-bezier(0.45, 0, 0.25, 1)',
+              fill: 'both',
+              pseudoElement: '::view-transition-new(root)',
+            },
+          );
+        })
+        // If the browser skips the animation (e.g. the tab is in the
+        // background), the theme has still switched: nothing to report.
+        .catch(() => {});
       transition.finished.catch(() => {}).finally(() => root.classList.remove('theme-switch'));
     });
   }

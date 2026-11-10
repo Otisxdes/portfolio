@@ -281,9 +281,8 @@
       return cells;
     };
 
-    // Read the tokens, size the canvas, place each ornament in the margin
-    // beside the reading column, and build its tiles.
-    const layout = () => {
+    // The --led-* tokens for the current theme.
+    const readColors = () => {
       const css = getComputedStyle(document.documentElement);
       const get = (k: string) => css.getPropertyValue(k).trim();
       colors = {
@@ -294,6 +293,12 @@
         litAlpha: parseFloat(get('--led-lit-alpha')) || 0.9,
         glow: get('--led-glow') === '1',
       };
+    };
+
+    // Size the canvas, place each ornament in the margin beside the reading
+    // column, and build its tiles.
+    const layout = () => {
+      readColors();
       dpr = Math.min(window.devicePixelRatio || 1, 2);
       const vw = window.innerWidth;
       const vh = window.innerHeight;
@@ -494,13 +499,21 @@
       mouseY = e.clientY;
       lastMove = performance.now();
     };
-    const themeObserver = new MutationObserver(refresh);
+    // A theme change only needs new colours, not a rebuild of every tile
+    // (rebuilding is slow enough to stutter the theme switch animation).
+    const recolor = () => {
+      readColors();
+      play();
+      // Repaint straight away, so no frame shows the old theme's tiles.
+      if (!reduceMotion.matches && !document.hidden) draw(performance.now());
+    };
+    const themeObserver = new MutationObserver(recolor);
     themeObserver.observe(document.documentElement, { attributeFilter: ['data-theme'] });
     const darkQuery = matchMedia('(prefers-color-scheme: dark)');
     window.addEventListener('resize', onResize);
     window.addEventListener('pointermove', onMouse, { passive: true });
     document.addEventListener('visibilitychange', play);
-    darkQuery.addEventListener('change', refresh);
+    darkQuery.addEventListener('change', recolor);
     reduceMotion.addEventListener('change', play);
 
     // Leaving the page: stop the loop and drop every listener.
@@ -513,7 +526,7 @@
         window.removeEventListener('resize', onResize);
         window.removeEventListener('pointermove', onMouse);
         document.removeEventListener('visibilitychange', play);
-        darkQuery.removeEventListener('change', refresh);
+        darkQuery.removeEventListener('change', recolor);
         reduceMotion.removeEventListener('change', play);
       },
       { once: true },

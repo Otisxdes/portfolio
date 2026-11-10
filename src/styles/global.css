@@ -134,33 +134,20 @@ html.lenis body {
    theme through a diamond that grows from the button, like the lozenge in
    the ornaments. Uses the browser's View Transitions; where they aren't
    supported, or for reduced motion, the theme just switches.
-   --theme-r is registered so the browser can animate it as a length. */
-@property --theme-r {
-  syntax: '<length>';
-  inherits: true;
-  initial-value: 0px;
-}
+   The diamond itself is animated from the toggle's script (it needs the
+   button's position and the screen size). Here we only switch off the
+   browser's default cross-fade, and pause colour transitions for the
+   moment of the switch: otherwise the new theme would still be fading
+   its colours inside the growing diamond, which reads as a smear. */
 html.theme-switch::view-transition-old(root),
 html.theme-switch::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
 }
-html.theme-switch::view-transition-new(root) {
-  clip-path: polygon(
-    var(--theme-x) calc(var(--theme-y) - var(--theme-r)),
-    calc(var(--theme-x) + var(--theme-r)) var(--theme-y),
-    var(--theme-x) calc(var(--theme-y) + var(--theme-r)),
-    calc(var(--theme-x) - var(--theme-r)) var(--theme-y)
-  );
-  animation: theme-lozenge 700ms var(--ease-out) both;
-}
-@keyframes theme-lozenge {
-  from {
-    --theme-r: 0px;
-  }
-  to {
-    --theme-r: 220vmax;
-  }
+html.theme-switch *,
+html.theme-switch *::before,
+html.theme-switch *::after {
+  transition: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
