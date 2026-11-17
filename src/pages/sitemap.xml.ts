@@ -4,8 +4,10 @@ import type { APIRoute } from 'astro';
 import { nav, projects, site } from '../data/site';
 
 export const GET: APIRoute = () => {
+  // Pages marked noindex stay out of the sitemap.
+  const noindex = ['/experiments'];
   const paths = [
-    ...nav.map((item) => item.href),
+    ...nav.map((item) => item.href).filter((href) => !noindex.includes(href)),
     ...projects.filter((p) => p.hasCaseStudy).map((p) => `/work/${p.slug}`),
   ];
 

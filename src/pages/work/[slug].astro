@@ -7,8 +7,9 @@ import Carousel from '../../components/Carousel.astro';
 import ProjectRow from '../../components/ProjectRow.astro';
 import RowPreviews from '../../components/RowPreviews.astro';
 import LedSeparator from '../../components/LedSeparator.astro';
-import { projects } from '../../data/site';
+import { projects, site } from '../../data/site';
 import { caseStudies } from '../../data/case-studies';
+import { article } from '../../data/structured-data';
 
 export function getStaticPaths() {
   const withCase = projects.filter((p) => p.hasCaseStudy);
@@ -31,11 +32,28 @@ const two = (n: number) => String(n).padStart(2, '0');
 
 const sizesFor = (columns = 1) =>
   columns === 1 ? '(min-width: 64rem) 64rem, 100vw' : `(min-width: 64rem) ${Math.round(64 / columns)}rem, 50vw`;
+
+// Search / share metadata and the Article structured data.
+const description = study ? study.description : `${project.title}: ${project.outcome}.`;
+const pageUrl = new URL(`/work/${project.slug}`, site.url).href;
+const structuredData = study
+  ? [
+      article({
+        url: pageUrl,
+        headline: study.headline,
+        description,
+        imageUrl: new URL(study.share.src, site.url).href,
+      }),
+    ]
+  : [];
 ---
 
 <Base
-  title={project.title}
-  description={study ? study.headline : `${project.title}: ${project.outcome}.`}
+  title={`${project.title} case study`}
+  description={description}
+  image={study?.share}
+  type={study ? 'article' : 'website'}
+  structuredData={structuredData}
 >
   <RowPreviews />
   <article>

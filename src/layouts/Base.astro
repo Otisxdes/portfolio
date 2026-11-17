@@ -2,17 +2,59 @@
 /* Base layout: every page is wrapped in this. Handles <head>, theme,
    page transitions, smooth scroll and the header/footer shell. */
 import { ClientRouter } from 'astro:transitions';
+import { getImage } from 'astro:assets';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import { site } from '../data/site';
+import { person } from '../data/structured-data';
+import portrait from '../assets/site/portrait.webp';
 import '../styles/global.css';
+
+/** Share preview image (link cards on LinkedIn, Slack, WhatsApp, X…). */
+export interface ShareImage {
+  /** Root-relative path, e.g. /media/projects/<slug>/<file>.jpg */
+  src: string;
+  width: number;
+  height: number;
+  alt: string;
+}
 
 interface Props {
   title?: string;
   description?: string;
+  /** Defaults to the portrait (square card). */
+  image?: ShareImage;
+  /** 'article' for case studies. */
+  type?: 'website' | 'article';
+  /** Keep this page out of search results (it stays reachable by link). */
+  noindex?: boolean;
+  /** Page-specific Schema.org data, added to the site-wide Person. */
+  structuredData?: Record<string, unknown>[];
 }
 
-const { title, description = site.description } = Astro.props;
+const {
+  title,
+  description = site.description,
+  type = 'website',
+  noindex = false,
+  structuredData = [],
+} = Astro.props;
+
+// Fallback share image: the portrait, as a square JPEG (widest support).
+const portraitShare = await getImage({ src: portrait, width: 1200, height: 1200, format: 'jpg' });
+const image: ShareImage = Astro.props.image ?? {
+  src: portraitShare.src,
+  width: 1200,
+  height: 1200,
+  alt: `Portrait of ${site.name}`,
+};
+const imageUrl = new URL(image.src, site.url).href;
+const isWide = image.width / image.height > 1.5;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [...person(new URL(portraitShare.src, site.url).href), ...structuredData],
+};
 const pageTitle = title ? `${title} · ${site.name}` : `${site.name}, ${site.role}`;
 // Canonical URL: no trailing slash and no .html, matching how pages are linked and served.
 const path =
@@ -32,12 +74,21 @@ const canonical = new URL(path, site.url).href;
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    {noindex && <meta name="robots" content="noindex" />}
 
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={type} />
+    <meta property="og:site_name" content={site.name} />
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:image" content={imageUrl} />
+    <meta property="og:image:width" content={String(image.width)} />
+    <meta property="og:image:height" content={String(image.height)} />
+    <meta property="og:image:alt" content={image.alt} />
+    <meta name="twitter:card" content={isWide ? 'summary_large_image' : 'summary'} />
+
+    <!-- Structured data: who this site is about (and, on case studies, the article). -->
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
 
     <!-- Theme: runs before paint so there's no flash of the wrong theme.
          Re-applied after each page swap because the router replaces <html> attributes. -->

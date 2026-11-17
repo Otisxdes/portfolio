@@ -1,0 +1,23 @@
+---
+/* Shown by Vercel for any URL that doesn't exist. */
+import Base from '../layouts/Base.astro';
+import LedOrnaments from '../components/LedOrnaments.astro';
+---
+
+<Base title="Page not found" noindex>
+  <LedOrnaments />
+
+  <h1 class="label" data-reveal>404</h1>
+  <p data-reveal>This page doesn't exist, or it moved.</p>
+  <p class="muted" data-reveal><a href="/">Back to home</a> or <a href="/work">see the work</a>.</p>
+</Base>
+
+<style>
+  h1 {
+    font-weight: var(--weight-regular);
+    margin-bottom: var(--space-3);
+  }
+  p + p {
+    margin-top: var(--space-2);
+  }
+</style>

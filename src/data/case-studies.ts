@@ -61,6 +61,10 @@ export interface CaseStudy {
   slug: string;
   /** The one sentence a hiring manager should remember. */
   headline: string;
+  /** Search and share snippet: who, what, result. Keep it under ~160 characters. */
+  description: string;
+  /** Share preview image, from public/ (1.91:1 or 16:9 works best). */
+  share: { src: string; width: number; height: number; alt: string };
   facts: { label: string; value: string }[];
   outcome: { value: string; label: string }[];
   hero: Visual;
@@ -73,6 +77,14 @@ export const caseStudies: CaseStudy[] = [
     slug: 'shukran-credit-card',
     headline:
       'Selling a credit card inside a shopping journey without hurting checkout conversion',
+    description:
+      'Case study: Otabek Mukhsinov designed the acquisition journey for the ADCB × Shukran credit card across Landmark e-commerce sites. 1.6M AED revenue in 6 months.',
+    share: {
+      src: '/media/projects/shukran-credit-card/hero-card-poster.jpg',
+      width: 1600,
+      height: 900,
+      alt: '3D render of the Shukran ADCB Visa Platinum credit card',
+    },
     facts: [
       { label: 'Role', value: 'Senior Product Designer' },
       { label: 'Year', value: '2024–25' },
@@ -240,6 +252,14 @@ export const caseStudies: CaseStudy[] = [
     slug: 'babyshop-rebrand',
     headline:
       'Bringing the Babyshop rebrand to three platforms in 60 days, without our usual iterations',
+    description:
+      'Case study: how Otabek Mukhsinov and his team brought the Babyshop rebrand to app, desktop and mobile web in 60 days, with about 60% done through design tokens.',
+    share: {
+      src: '/media/projects/babyshop-rebrand/full-craft-poster.jpg',
+      width: 1600,
+      height: 900,
+      alt: 'The rebranded Babyshop homepage on desktop',
+    },
     facts: [
       { label: 'Role', value: 'Senior Product Designer' },
       { label: 'Year', value: '2026' },

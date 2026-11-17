@@ -1,9 +1,11 @@
 ---
 import Base from '../layouts/Base.astro';
 import LedOrnaments from '../components/LedOrnaments.astro';
+// noindex until this page has real content. Remove it then, and take
+// '/experiments' out of the noindex list in sitemap.xml.ts.
 ---
 
-<Base title="Experiments" description="Visual and AI experiments by Otabek Mukhsinov.">
+<Base title="Experiments" description="Visual and AI experiments by Otabek Mukhsinov." noindex>
   <LedOrnaments />
 
   <h1 class="label" data-reveal>experiments</h1>
