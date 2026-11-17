@@ -14,7 +14,13 @@ interface Props {
 
 const { title, description = site.description } = Astro.props;
 const pageTitle = title ? `${title} · ${site.name}` : `${site.name}, ${site.role}`;
-const canonical = new URL(Astro.url.pathname, site.url).href;
+// Canonical URL: no trailing slash and no .html, matching how pages are linked and served.
+const path =
+  Astro.url.pathname
+    .replace(/\.html$/, '')
+    .replace(/(^|\/)index$/, '$1')
+    .replace(/\/$/, '') || '/';
+const canonical = new URL(path, site.url).href;
 ---
 
 <!doctype html>
