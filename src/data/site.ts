@@ -8,7 +8,7 @@ export const site = {
   shortName: 'Otabek',
   role: 'Senior Product Designer',
   description:
-    'Otabek Mukhsinov, senior product designer in Dubai who defines the real problem first, then designs for revenue and conversion.',
+    'Otabek Mukhsinov, senior product designer in Dubai working on e-commerce, loyalty and design systems. I define the real problem first, then design for revenue and conversion.',
   url: 'https://www.otisxdes.com',
   email: 'otabek.mukhsinov@gmail.com',
   location: { city: 'Dubai', country: 'UAE', timeZone: 'Asia/Dubai', zoneLabel: 'GST' },

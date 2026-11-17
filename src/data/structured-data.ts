@@ -17,6 +17,7 @@ export const person = (imageUrl: string) => [
     '@id': personId,
     name: site.name,
     jobTitle: site.role,
+    description: site.description,
     worksFor: { '@type': 'Organization', name: experience[0].org },
     address: {
       '@type': 'PostalAddress',
