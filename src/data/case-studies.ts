@@ -86,7 +86,7 @@ export const caseStudies: CaseStudy[] = [
       alt: '3D render of the Shukran ADCB Visa Platinum credit card',
     },
     facts: [
-      { label: 'Role', value: 'Senior Product Designer' },
+      { label: 'Role', value: 'Product Designer' },
       { label: 'Year', value: '2024–25' },
       { label: 'Project type', value: 'Acquisition, Landing page, Cross-brand touchpoints, 3D' },
       { label: 'Tools', value: 'Figma, Cinema 4D' },

@@ -21,7 +21,7 @@ export const nav = [
 ];
 
 export const socials = [
-  { label: 'LinkedIn', href: 'https://www.linkedin.com/in/otabek-mukhsinov-aa983b185/' },
+  { label: 'LinkedIn', href: 'https://www.linkedin.com/in/otabek-mukhsinov-senior-product-designer/' },
   { label: 'Dribbble', href: 'https://dribbble.com/Otabek20' },
   { label: 'Instagram', href: 'https://www.instagram.com/otisxdes/' },
 ];
@@ -79,7 +79,10 @@ export const projects: Project[] = [
   },
 ];
 
+/* Kept identical to LinkedIn (titles, company names, dates), so search
+   engines and AI tools see one consistent story. Update both together. */
 export const experience = [
-  { org: 'Landmark Group', role: 'Senior Product Designer', period: 'Dec 2021 – Present' },
-  { org: 'Bfound', role: 'Web Designer', period: 'May 2019 – Nov 2021' },
+  { org: 'Landmark Group', role: 'Senior Product Designer', period: 'Sep 2025 – Present' },
+  { org: 'Landmark Group', role: 'Product Designer', period: 'Dec 2021 – Sep 2025' },
+  { org: 'bfound.io', role: 'UX-UI Designer', period: 'Jun 2019 – Nov 2021' },
 ];
