@@ -33,7 +33,8 @@ export interface Project {
   title: string;
   /** One-line outcome: the business number leads. */
   outcome: string;
-  discipline: string;
+  /** Two or three keywords shown in the row, e.g. 'Acquisition · Loyalty'. */
+  keywords: string;
   context: string;
   period: string;
   status: ProjectStatus;
@@ -49,7 +50,7 @@ export const projects: Project[] = [
     slug: 'returns-revamp',
     title: 'Returns Revamp',
     outcome: 'Redesigning the returns journey end to end',
-    discipline: 'Product Design',
+    keywords: 'Post-purchase · Returns',
     context: 'Landmark Group',
     period: '2026',
     status: 'in-progress',
@@ -59,7 +60,7 @@ export const projects: Project[] = [
     slug: 'babyshop-rebrand',
     title: 'Babyshop Rebrand',
     outcome: 'Live on app, desktop and mobile web in 60 days',
-    discipline: 'Product Design',
+    keywords: 'Design systems · Rebrand',
     context: 'Landmark Group',
     period: '2026',
     status: 'live',
@@ -70,7 +71,7 @@ export const projects: Project[] = [
     slug: 'shukran-credit-card',
     title: 'ADCB × Shukran Credit Card',
     outcome: '1.6M AED revenue in 6 months',
-    discipline: 'Product Design',
+    keywords: 'Acquisition · Loyalty',
     context: 'Landmark Group',
     period: '2024–2025',
     status: 'live',

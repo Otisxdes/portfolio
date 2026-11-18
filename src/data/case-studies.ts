@@ -246,6 +246,16 @@ export const caseStudies: CaseStudy[] = [
           'This project had a lot of stakeholders on both sides. Designing the solution was only half the job. The other half was communicating, aligning and pushing it forward until it shipped.',
         ],
       },
+      // TODO: learnings chapter (Lena Kul checklist: a maturity signal).
+      // Uncomment and fill in, 1–2 sentences each, honest over flattering:
+      // {
+      //   heading: 'What I’d change',
+      //   body: [
+      //     'What worked: <the decision you would make again>.',
+      //     'What didn’t: <one thing that went wrong or cost time>.',
+      //     'Next time: <what you would do differently, and why>.',
+      //   ],
+      // },
     ],
   },
   {
@@ -269,7 +279,7 @@ export const caseStudies: CaseStudy[] = [
     ],
     outcome: [
       { value: '60 days', label: 'brief to launch' },
-      { value: '3 platforms', label: 'live on launch day' },
+      { value: 'Steady', label: 'conversion through the switch' },
       { value: '60%', label: 'of the rebrand done through tokens' },
     ],
     hero: {
@@ -378,6 +388,16 @@ export const caseStudies: CaseStudy[] = [
           'Iterating finds the best version. Sometimes the job is to find a good one and ship it.',
         ],
       },
+      // TODO: learnings chapter (Lena Kul checklist: a maturity signal).
+      // Uncomment and fill in, 1–2 sentences each, honest over flattering:
+      // {
+      //   heading: 'What I’d change',
+      //   body: [
+      //     'What worked: <the decision you would make again>.',
+      //     'What didn’t: <one thing that went wrong or cost time>.',
+      //     'Next time: <what you would do differently, and why>.',
+      //   ],
+      // },
     ],
   },
 ];
