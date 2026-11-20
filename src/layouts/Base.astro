@@ -111,6 +111,17 @@ const canonical = new URL(path, site.url).href;
       })();
     </script>
 
+    <!-- Analytics: Umami, cookieless (no consent banner needed). data-domains
+         limits counting to the live site, so local testing isn't recorded.
+         It follows page transitions on its own. Events are marked in the
+         markup with data-umami-event="name". -->
+    <script
+      is:inline
+      defer
+      src="https://cloud.umami.is/script.js"
+      data-website-id="11b1691b-b5cb-43b5-ac0f-eec8a1f8cd7e"
+      data-domains="www.otisxdes.com"></script>
+
     <ClientRouter />
   </head>
   <body>

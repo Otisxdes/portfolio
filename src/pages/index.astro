@@ -86,7 +86,7 @@ import { projects, experience, socials, site } from '../data/site';
         {
           socials.map((s, i) => (
             <>
-              <a href={s.href} rel="me noopener" target="_blank">
+              <a href={s.href} rel="me noopener" target="_blank" data-umami-event={`${s.label} clicked`}>
                 {s.label}
               </a>
               {i < socials.length - 1 ? ', ' : '.'}
