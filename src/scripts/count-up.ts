@@ -2,7 +2,7 @@
    when it scrolls into view. Used for the case study impact numbers.
 
    Only the leading number moves; whatever follows stays as written, so
-   "1.6M AED" counts 0.0M AED → 1.6M AED and "60 days" counts 0 → 60 days.
+   "1.6M AED" counts 0.0M AED → 1.6M AED and "3 weeks" counts 0 → 3 weeks.
    Text that doesn't start with a number is left alone.
    Skipped for reduced motion (the final value is already in the HTML). */
 import { animate, inView } from 'motion';

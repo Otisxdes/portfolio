@@ -59,7 +59,7 @@ export const projects: Project[] = [
   {
     slug: 'babyshop-rebrand',
     title: 'Babyshop Rebrand',
-    outcome: 'Live on app, desktop and mobile web in 60 days',
+    outcome: 'Live on app, desktop and mobile web in 3 weeks',
     keywords: 'Design systems · Rebrand',
     context: 'Landmark Group',
     period: '2026',

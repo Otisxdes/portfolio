@@ -261,9 +261,9 @@ export const caseStudies: CaseStudy[] = [
   {
     slug: 'babyshop-rebrand',
     headline:
-      'Bringing the Babyshop rebrand to three platforms in 60 days, without our usual iterations',
+      'Bringing the Babyshop rebrand to three platforms in 3 weeks, without our usual iterations',
     description:
-      'Case study: how Otabek Mukhsinov and his team brought the Babyshop rebrand to app, desktop and mobile web in 60 days, with about 60% done through design tokens.',
+      'Case study: how Otabek Mukhsinov and his team brought the Babyshop rebrand to app, desktop and mobile web in 3 weeks, with about 60% done through design tokens.',
     share: {
       src: '/media/projects/babyshop-rebrand/full-craft-poster.jpg',
       width: 1600,
@@ -278,7 +278,7 @@ export const caseStudies: CaseStudy[] = [
       { label: 'Platforms', value: 'App, Desktop web, Mobile web' },
     ],
     outcome: [
-      { value: '60 days', label: 'brief to launch' },
+      { value: '3 weeks', label: 'brief to launch' },
       { value: 'Steady', label: 'conversion through the switch' },
       { value: '60%', label: 'of the rebrand done through tokens' },
     ],
@@ -316,7 +316,7 @@ export const caseStudies: CaseStudy[] = [
         heading: 'Polish, not redesign',
         body: [
           'The structure of the old Babyshop experience worked, but the visual layer was dated and inconsistent. So we kept the structure and fixed the layer.',
-          'We applied the fundamentals with discipline: hierarchy, contrast, spacing, rhythm and repetition. In 60 days, consistency would do more for Babyshop than reinvention.',
+          'We applied the fundamentals with discipline: hierarchy, contrast, spacing, rhythm and repetition. In 3 weeks, consistency would do more for Babyshop than reinvention.',
         ],
         galleries: [
           {
@@ -335,7 +335,7 @@ export const caseStudies: CaseStudy[] = [
       {
         heading: 'Tokens did most of the work',
         body: [
-          'I helped build our design system, and we first shipped it on Max. That’s what made 60 days possible.',
+          'I helped build our design system, and we first shipped it on Max. That’s what made 3 weeks possible.',
           'I translated the agency’s guidelines into a Babyshop token set covering colour, typography, radius, spacing and layout. Around 60% of the rebrand was applying those tokens to existing components. The other 40% was new work, and I designed those components myself.',
         ],
         galleries: [
@@ -384,7 +384,7 @@ export const caseStudies: CaseStudy[] = [
           'Live on app, desktop and mobile web on the brand’s official launch day. Conversion held steady through the switch.',
           // TODO: formal recognition or award? Name it if it has one.
           'Recognised by the leadership team at launch.',
-          'At first, 60 days felt unrealistic. I didn’t think we’d make it. What got us there wasn’t working faster. It was agreeing early on what this project would and wouldn’t be, then committing to it.',
+          'At first, 3 weeks felt unrealistic. I didn’t think we’d make it. What got us there wasn’t working faster. It was agreeing early on what this project would and wouldn’t be, then committing to it.',
           'Iterating finds the best version. Sometimes the job is to find a good one and ship it.',
         ],
       },
